@@ -247,11 +247,6 @@ func (s *Server) ConfigHandler(w http.ResponseWriter, r *http.Request) {
 	s.templates.Render(w, "config.html", data)
 }
 
-func (s *Server) SecretsHandler(w http.ResponseWriter, r *http.Request) {
-	data := s.pageData("Secrets", "secrets")
-	s.templates.Render(w, "secrets.html", data)
-}
-
 func (s *Server) UsersHandler(w http.ResponseWriter, r *http.Request) {
 	data := s.pageData("Users & Organizations", "users")
 	s.templates.Render(w, "users.html", data)

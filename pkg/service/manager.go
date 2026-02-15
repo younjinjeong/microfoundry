@@ -9,6 +9,7 @@ import (
 
 	"github.com/younjinjeong/microfoundry/pkg/k8s"
 	"github.com/younjinjeong/microfoundry/pkg/models"
+	"github.com/younjinjeong/microfoundry/pkg/secrets"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,11 +30,15 @@ func SecretName(instanceName string) string {
 // Manager handles service instance lifecycle using K8s as the backing store.
 type Manager struct {
 	k8sClient *k8s.Client
+	secrets   *secrets.Manager
 }
 
 // NewManager creates a new service manager.
 func NewManager(client *k8s.Client) *Manager {
-	return &Manager{k8sClient: client}
+	return &Manager{
+		k8sClient: client,
+		secrets:   secrets.NewManager(client),
+	}
 }
 
 // List returns all service instances.
@@ -147,37 +152,17 @@ func (m *Manager) UpdateStatus(ctx context.Context, name, status, msg string) er
 	})
 }
 
-// SaveOutputs stores service outputs in a K8s Secret.
+// SaveOutputs stores service outputs in a K8s Secret via the secrets manager.
 func (m *Manager) SaveOutputs(ctx context.Context, name string, outputs models.ServiceOutputs) error {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: SecretName(name),
-			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": labelManagedBy,
-				labelServiceInstance:           name,
-			},
-		},
-		StringData: map[string]string{
-			"host":     outputs.Host,
-			"port":     fmt.Sprintf("%d", outputs.Port),
-			"username": outputs.Username,
-			"password": outputs.Password,
-			"database": outputs.Database,
-			"uri":      outputs.URI,
-		},
+	data := map[string]string{
+		"host":     outputs.Host,
+		"port":     fmt.Sprintf("%d", outputs.Port),
+		"username": outputs.Username,
+		"password": outputs.Password,
+		"database": outputs.Database,
+		"uri":      outputs.URI,
 	}
-
-	existing, err := m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Get(ctx, SecretName(name), metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			_, err = m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Create(ctx, secret, metav1.CreateOptions{})
-			return err
-		}
-		return err
-	}
-	existing.StringData = secret.StringData
-	_, err = m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Update(ctx, existing, metav1.UpdateOptions{})
-	return err
+	return m.secrets.CreateServiceSecret(ctx, name, data)
 }
 
 // Delete removes a service instance and its secret.
@@ -186,8 +171,7 @@ func (m *Manager) Delete(ctx context.Context, name string) error {
 	if cmErr != nil && !errors.IsNotFound(cmErr) {
 		return fmt.Errorf("deleting service ConfigMap: %w", cmErr)
 	}
-	secErr := m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Delete(ctx, SecretName(name), metav1.DeleteOptions{})
-	if secErr != nil && !errors.IsNotFound(secErr) {
+	if secErr := m.secrets.Delete(ctx, name); secErr != nil {
 		return fmt.Errorf("deleting service Secret: %w", secErr)
 	}
 	return nil

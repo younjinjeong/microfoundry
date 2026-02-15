@@ -34,6 +34,10 @@ func main() {
 		bindServiceCmd(),
 		unbindServiceCmd(),
 		deleteServiceCmd(),
+		secretsListCmd(),
+		secretDetailCmd(),
+		createSecretCmd(),
+		deleteSecretCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

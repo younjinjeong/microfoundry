@@ -27,14 +27,6 @@ type ServiceBindingInfo struct {
 	Status string `json:"status"`
 }
 
-// SecretInfo represents K8s Secret metadata (no values exposed).
-type SecretInfo struct {
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	KeyCount  int    `json:"key_count"`
-	CreatedAt string `json:"created_at"`
-}
-
 // ServiceType defines a backing service offering in the catalog.
 type ServiceType struct {
 	ID          string        `json:"id"`

@@ -101,8 +101,9 @@
         <!-- Connection Info -->
         {{if $inst.Outputs.Host}}
         <div class="bg-white rounded-lg shadow">
-            <div class="px-6 py-4 border-b border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide">Connection Details</h3>
+                <a href="/secrets/{{$inst.Name}}" class="text-sm text-blue-600 hover:text-blue-800 font-medium">View in Secrets Manager &rarr;</a>
             </div>
             <div class="px-6 py-4">
                 <dl class="space-y-3">

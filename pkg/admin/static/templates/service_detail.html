@@ -1,0 +1,199 @@
+{{define "service_detail.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+{{with .Content}}
+{{$inst := .Instance}}
+{{$plan := .Plan}}
+
+<!-- Breadcrumb -->
+<div class="mb-6">
+    <nav class="text-sm text-gray-500">
+        <a href="/services" class="hover:text-blue-600">Services</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-900 font-medium">{{$inst.Name}}</span>
+    </nav>
+</div>
+
+<!-- Header -->
+<div class="flex justify-between items-start mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900">{{$inst.Name}}</h2>
+        <p class="text-sm text-gray-500 mt-1">{{$inst.ServiceType}} &middot; {{$inst.Plan}} plan</p>
+    </div>
+    <div class="flex items-center space-x-3">
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {{stateBg $inst.Status}}">{{$inst.Status}}</span>
+        {{if eq (len $inst.Bindings) 0}}
+        <button hx-delete="/services/{{$inst.Name}}"
+                hx-confirm="Delete service '{{$inst.Name}}'? This cannot be undone."
+                class="inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 rounded-md hover:bg-red-50 text-sm font-medium">
+            Delete
+        </button>
+        {{end}}
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Service Info -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Overview Card -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide">Service Information</h3>
+            </div>
+            <div class="px-6 py-4">
+                <dl class="grid grid-cols-2 gap-4">
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Service Type</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{$inst.ServiceType}}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Plan</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{$inst.Plan}}</span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Cluster</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{$inst.ClusterID}}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Created</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{timeAgo $inst.CreatedAt}}</dd>
+                    </div>
+                    {{if $plan.InstanceClass}}
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Instance Class</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{$plan.InstanceClass}}</dd>
+                    </div>
+                    {{end}}
+                    {{if $plan.StorageGB}}
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Storage</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{$plan.StorageGB}} GB</dd>
+                    </div>
+                    {{end}}
+                    {{if $plan.MultiAZ}}
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Multi-AZ</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Enabled</span>
+                        </dd>
+                    </div>
+                    {{end}}
+                    {{if $plan.Replicas}}
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Read Replicas</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{$plan.Replicas}}</dd>
+                    </div>
+                    {{end}}
+                    {{if $plan.CostEstimate}}
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Estimated Cost</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{$plan.CostEstimate}}</dd>
+                    </div>
+                    {{end}}
+                </dl>
+            </div>
+        </div>
+
+        <!-- Connection Info -->
+        {{if $inst.Outputs.Host}}
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide">Connection Details</h3>
+            </div>
+            <div class="px-6 py-4">
+                <dl class="space-y-3">
+                    <div class="flex">
+                        <dt class="w-24 text-sm font-medium text-gray-500">Host</dt>
+                        <dd class="text-sm text-gray-900 font-mono">{{$inst.Outputs.Host}}</dd>
+                    </div>
+                    {{if $inst.Outputs.Port}}
+                    <div class="flex">
+                        <dt class="w-24 text-sm font-medium text-gray-500">Port</dt>
+                        <dd class="text-sm text-gray-900 font-mono">{{$inst.Outputs.Port}}</dd>
+                    </div>
+                    {{end}}
+                    <div class="flex">
+                        <dt class="w-24 text-sm font-medium text-gray-500">Database</dt>
+                        <dd class="text-sm text-gray-900 font-mono">{{$inst.Outputs.Database}}</dd>
+                    </div>
+                    <div class="flex">
+                        <dt class="w-24 text-sm font-medium text-gray-500">Username</dt>
+                        <dd class="text-sm text-gray-900 font-mono">{{$inst.Outputs.Username}}</dd>
+                    </div>
+                    <div class="flex">
+                        <dt class="w-24 text-sm font-medium text-gray-500">Password</dt>
+                        <dd class="text-sm text-gray-400 italic">********</dd>
+                    </div>
+                    {{if $inst.Outputs.URI}}
+                    <div class="flex">
+                        <dt class="w-24 text-sm font-medium text-gray-500">URI</dt>
+                        <dd class="text-sm text-gray-400 italic">****hidden****</dd>
+                    </div>
+                    {{end}}
+                </dl>
+            </div>
+        </div>
+        {{end}}
+    </div>
+
+    <!-- Sidebar: Bindings -->
+    <div class="space-y-6">
+        <!-- Bound Applications -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide">Bound Applications</h3>
+            </div>
+            <div class="px-6 py-4">
+                {{if $inst.Bindings}}
+                <ul class="divide-y divide-gray-200">
+                    {{range $inst.Bindings}}
+                    <li class="py-3 flex justify-between items-center">
+                        <div>
+                            <a href="/apps/{{.AppName}}" class="text-sm font-medium text-blue-600 hover:text-blue-800">{{.AppName}}</a>
+                            <p class="text-xs text-gray-500">bound {{timeAgo .BoundAt}}</p>
+                        </div>
+                        <form>
+                            <input type="hidden" name="app_name" value="{{.AppName}}">
+                            <button hx-post="/services/{{$inst.Name}}/unbind"
+                                    hx-include="closest form"
+                                    hx-confirm="Unbind '{{.AppName}}' from '{{$inst.Name}}'?"
+                                    class="text-xs text-red-600 hover:text-red-800 font-medium">Unbind</button>
+                        </form>
+                    </li>
+                    {{end}}
+                </ul>
+                {{else}}
+                <p class="text-sm text-gray-500">No applications bound.</p>
+                {{end}}
+
+                <!-- Bind form -->
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <form hx-post="/services/{{$inst.Name}}/bind" hx-swap="none" class="flex space-x-2">
+                        <input type="text" name="app_name" placeholder="App name"
+                               class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <button type="submit" class="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">Bind</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        {{if $inst.StatusMsg}}
+        <!-- Status Message -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide">Status Message</h3>
+            </div>
+            <div class="px-6 py-4">
+                <p class="text-sm text-gray-700">{{$inst.StatusMsg}}</p>
+            </div>
+        </div>
+        {{end}}
+    </div>
+</div>
+
+{{end}}
+{{end}}

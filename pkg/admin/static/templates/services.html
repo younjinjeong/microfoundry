@@ -3,20 +3,76 @@
 {{end}}
 
 {{define "content"}}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-lg font-semibold text-gray-900">Provisioned Services</h2>
+        <p class="text-sm text-gray-500">Backing services bound to your applications</p>
+    </div>
+    <a href="/marketplace" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Create Service
+    </a>
+</div>
+
+{{with .Content}}
+{{if .Services}}
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plan</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bound Apps</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200" id="service-table-body" hx-trigger="every 15s" hx-get="/services" hx-select="#service-table-body" hx-swap="outerHTML">
+            {{range .Services}}
+            <tr id="svc-row-{{.Name}}" class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <a href="/services/{{.Name}}" class="text-sm font-medium text-blue-600 hover:text-blue-800">{{.Name}}</a>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{.ServiceType}}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{.Plan}}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{stateBg .Status}}">{{.Status}}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{.BoundApps}}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{timeAgo .CreatedAt}}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right">
+                    <button hx-delete="/services/{{.Name}}"
+                            hx-target="#svc-row-{{.Name}}"
+                            hx-swap="outerHTML swap:0.3s"
+                            hx-confirm="Delete service '{{.Name}}'? This cannot be undone."
+                            class="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
 <div class="bg-white rounded-lg shadow p-12 text-center">
     <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
     </svg>
-    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 mb-4">
-        Coming Soon
-    </span>
-    <h3 class="text-xl font-bold text-gray-900 mt-2">Backing Services</h3>
+    <h3 class="text-xl font-bold text-gray-900 mt-2">No Services Provisioned</h3>
     <p class="text-gray-500 mt-2 max-w-md mx-auto">
-        Manage backing services like databases, message queues, and caches.
-        MicroFoundry uses OSBAPI-compatible service brokers to provision and bind services to your applications.
+        You haven't created any backing services yet. Browse the marketplace to provision databases, caches, and more.
     </p>
-    <div class="mt-6 text-sm text-gray-400">
-        <p>Planned services: AWS RDS, Cloud SQL, Azure Database, Redis, RabbitMQ</p>
+    <div class="mt-6">
+        <a href="/marketplace" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+            Browse Marketplace
+        </a>
     </div>
 </div>
+{{end}}
+{{end}}
 {{end}}

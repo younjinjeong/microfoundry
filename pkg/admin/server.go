@@ -48,7 +48,13 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /apps/{name}/instances", s.AppInstancesHandler)
 	s.mux.HandleFunc("GET /apps/{name}/logs/stream", s.LogStreamHandler)
 	s.mux.HandleFunc("GET /config", s.ConfigHandler)
-	s.mux.HandleFunc("GET /services", s.ServicesHandler)
+	s.mux.HandleFunc("GET /services", s.ServicesListHandler)
+	s.mux.HandleFunc("GET /services/{name}", s.ServiceDetailHandler)
+	s.mux.HandleFunc("GET /marketplace", s.MarketplaceHandler)
+	s.mux.HandleFunc("POST /services/create", s.CreateServiceHandler)
+	s.mux.HandleFunc("POST /services/{name}/bind", s.BindServiceHandler)
+	s.mux.HandleFunc("POST /services/{name}/unbind", s.UnbindServiceHandler)
+	s.mux.HandleFunc("DELETE /services/{name}", s.DeleteServiceHandler)
 	s.mux.HandleFunc("GET /secrets", s.SecretsHandler)
 	s.mux.HandleFunc("GET /users", s.UsersHandler)
 
@@ -71,6 +77,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("DELETE /api/apps/{name}", s.APIDeleteAppHandler)
 	s.mux.HandleFunc("GET /api/clusters", s.APIClustersListHandler)
 	s.mux.HandleFunc("GET /api/clusters/{id}/health", s.APIClusterHealthHandler)
+	s.mux.HandleFunc("GET /api/services", s.APIServicesListHandler)
+	s.mux.HandleFunc("GET /api/services/{name}", s.APIServiceDetailHandler)
+	s.mux.HandleFunc("GET /api/marketplace", s.APIMarketplaceHandler)
 }
 
 func (s *Server) ListenAndServe(addr string) error {

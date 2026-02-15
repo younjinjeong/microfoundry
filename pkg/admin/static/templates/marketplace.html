@@ -1,0 +1,101 @@
+{{define "marketplace.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<div class="mb-6">
+    <h2 class="text-lg font-semibold text-gray-900">Service Marketplace</h2>
+    <p class="text-sm text-gray-500">Browse available backing services and provision new instances</p>
+</div>
+
+{{with .Content}}
+{{range .Catalog}}
+<div class="bg-white rounded-lg shadow mb-8">
+    <!-- Service Type Header -->
+    <div class="px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">{{.Name}}</h3>
+                    <p class="text-sm text-gray-500">{{.Description}}</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">{{.Provider}}</span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{{.Category}}</span>
+            </div>
+        </div>
+        {{if .Tags}}
+        <div class="mt-2 flex flex-wrap gap-1">
+            {{range .Tags}}
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200">{{.}}</span>
+            {{end}}
+        </div>
+        {{end}}
+    </div>
+
+    <!-- Plans -->
+    <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {{$svcID := .ID}}
+            {{range .Plans}}
+            <div class="border border-gray-200 rounded-lg p-5 hover:border-blue-300 hover:shadow-sm transition-all">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-900">{{.Name}}</h4>
+                        <p class="text-xs text-gray-500 mt-1">{{.Description}}</p>
+                    </div>
+                </div>
+
+                <dl class="space-y-2 text-sm mb-4">
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Instance</dt>
+                        <dd class="font-mono text-gray-900 text-xs">{{.InstanceClass}}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Storage</dt>
+                        <dd class="text-gray-900">{{.StorageGB}} GB</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Replicas</dt>
+                        <dd class="text-gray-900">{{if .Replicas}}{{.Replicas}}{{else}}None{{end}}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-500">Multi-AZ</dt>
+                        <dd class="text-gray-900">{{if .MultiAZ}}Yes{{else}}No{{end}}</dd>
+                    </div>
+                </dl>
+
+                <div class="flex justify-between items-center pt-3 border-t border-gray-100">
+                    <span class="text-sm font-semibold text-gray-900">{{.CostEstimate}}</span>
+                    {{if .Customizable}}
+                    <span class="text-xs text-blue-600">Customizable</span>
+                    {{end}}
+                </div>
+
+                <!-- Create Service Form (inline) -->
+                <div class="mt-4">
+                    <form hx-post="/services/create" hx-swap="none" class="space-y-2">
+                        <input type="hidden" name="service_type" value="{{$svcID}}">
+                        <input type="hidden" name="plan" value="{{.ID}}">
+                        <input type="text" name="name" placeholder="Instance name (e.g., my-db)"
+                               required pattern="[a-z0-9][a-z0-9-]*"
+                               class="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <button type="submit" class="w-full px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                            Create Instance
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</div>
+{{end}}
+{{end}}
+{{end}}

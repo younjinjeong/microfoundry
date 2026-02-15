@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/younjinjeong/microfoundry/pkg/models"
 	"github.com/younjinjeong/microfoundry/pkg/service"
 )
 
@@ -31,7 +32,7 @@ func bindServiceCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if inst.Status != "available" {
+			if inst.Status != models.ServiceStatusAvailable {
 				return fmt.Errorf("service %q is not available (status: %s)", svcName, inst.Status)
 			}
 
@@ -43,7 +44,7 @@ func bindServiceCmd() *cobra.Command {
 			}
 
 			// Inject credentials into deployment
-			secretName := "mf-svc-" + svcName
+			secretName := service.SecretName(svcName)
 			if err := binder.Bind(ctx, appName, secretName); err != nil {
 				// Rollback binding metadata
 				_ = mgr.RemoveBinding(ctx, svcName, appName)

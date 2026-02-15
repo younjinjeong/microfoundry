@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/younjinjeong/microfoundry/pkg/k8s"
@@ -15,10 +16,15 @@ import (
 
 const (
 	serviceConfigMapPrefix = "mf-svc-meta-"
-	serviceSecretPrefix    = "mf-svc-"
 	labelManagedBy         = "microfoundry"
 	labelServiceInstance   = "microfoundry.io/service-instance"
+	maxRetries             = 3
 )
+
+// SecretName returns the K8s Secret name for a service instance.
+func SecretName(instanceName string) string {
+	return models.ServiceSecretPrefix + instanceName
+}
 
 // Manager handles service instance lifecycle using K8s as the backing store.
 type Manager struct {
@@ -44,8 +50,12 @@ func (m *Manager) List(ctx context.Context) ([]models.ServiceListItem, error) {
 		var inst models.ServiceInstance
 		if data, ok := cm.Data["instance"]; ok {
 			if err := json.Unmarshal([]byte(data), &inst); err != nil {
+				log.Printf("warning: skipping corrupted service ConfigMap %q: %v", cm.Name, err)
 				continue
 			}
+		} else {
+			log.Printf("warning: service ConfigMap %q missing 'instance' key", cm.Name)
+			continue
 		}
 		items = append(items, models.ServiceListItem{
 			Name:        inst.Name,
@@ -70,15 +80,18 @@ func (m *Manager) Get(ctx context.Context, name string) (*models.ServiceInstance
 		return nil, err
 	}
 
+	data, ok := cm.Data["instance"]
+	if !ok {
+		return nil, fmt.Errorf("service instance %q has corrupted metadata (missing 'instance' key)", name)
+	}
+
 	var inst models.ServiceInstance
-	if data, ok := cm.Data["instance"]; ok {
-		if err := json.Unmarshal([]byte(data), &inst); err != nil {
-			return nil, fmt.Errorf("unmarshalling service instance: %w", err)
-		}
+	if err := json.Unmarshal([]byte(data), &inst); err != nil {
+		return nil, fmt.Errorf("unmarshalling service instance: %w", err)
 	}
 
 	// Load outputs from secret if available
-	secret, err := m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Get(ctx, serviceSecretPrefix+name, metav1.GetOptions{})
+	secret, err := m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Get(ctx, SecretName(name), metav1.GetOptions{})
 	if err == nil {
 		inst.Outputs = models.ServiceOutputs{
 			Host:     string(secret.Data["host"]),
@@ -88,7 +101,10 @@ func (m *Manager) Get(ctx context.Context, name string) (*models.ServiceInstance
 			URI:      string(secret.Data["uri"]),
 		}
 		if p, ok := secret.Data["port"]; ok {
-			fmt.Sscanf(string(p), "%d", &inst.Outputs.Port)
+			var port int
+			if _, err := fmt.Sscanf(string(p), "%d", &port); err == nil {
+				inst.Outputs.Port = port
+			}
 		}
 	}
 
@@ -123,23 +139,19 @@ func (m *Manager) Create(ctx context.Context, inst *models.ServiceInstance) erro
 	return err
 }
 
-// UpdateStatus updates the status of a service instance.
+// UpdateStatus updates the status of a service instance with conflict retry.
 func (m *Manager) UpdateStatus(ctx context.Context, name, status, msg string) error {
-	inst, err := m.Get(ctx, name)
-	if err != nil {
-		return err
-	}
-	inst.Status = status
-	inst.StatusMsg = msg
-	inst.UpdatedAt = time.Now()
-	return m.save(ctx, inst)
+	return m.retryOnConflict(ctx, name, func(inst *models.ServiceInstance) {
+		inst.Status = status
+		inst.StatusMsg = msg
+	})
 }
 
 // SaveOutputs stores service outputs in a K8s Secret.
 func (m *Manager) SaveOutputs(ctx context.Context, name string, outputs models.ServiceOutputs) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: serviceSecretPrefix + name,
+			Name: SecretName(name),
 			Labels: map[string]string{
 				"app.kubernetes.io/managed-by": labelManagedBy,
 				labelServiceInstance:           name,
@@ -155,7 +167,7 @@ func (m *Manager) SaveOutputs(ctx context.Context, name string, outputs models.S
 		},
 	}
 
-	existing, err := m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Get(ctx, serviceSecretPrefix+name, metav1.GetOptions{})
+	existing, err := m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Get(ctx, SecretName(name), metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			_, err = m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Create(ctx, secret, metav1.CreateOptions{})
@@ -170,73 +182,76 @@ func (m *Manager) SaveOutputs(ctx context.Context, name string, outputs models.S
 
 // Delete removes a service instance and its secret.
 func (m *Manager) Delete(ctx context.Context, name string) error {
-	// Delete ConfigMap
-	_ = m.k8sClient.Clientset.CoreV1().ConfigMaps(m.k8sClient.Namespace).Delete(ctx, serviceConfigMapPrefix+name, metav1.DeleteOptions{})
-	// Delete Secret
-	_ = m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Delete(ctx, serviceSecretPrefix+name, metav1.DeleteOptions{})
+	cmErr := m.k8sClient.Clientset.CoreV1().ConfigMaps(m.k8sClient.Namespace).Delete(ctx, serviceConfigMapPrefix+name, metav1.DeleteOptions{})
+	if cmErr != nil && !errors.IsNotFound(cmErr) {
+		return fmt.Errorf("deleting service ConfigMap: %w", cmErr)
+	}
+	secErr := m.k8sClient.Clientset.CoreV1().Secrets(m.k8sClient.Namespace).Delete(ctx, SecretName(name), metav1.DeleteOptions{})
+	if secErr != nil && !errors.IsNotFound(secErr) {
+		return fmt.Errorf("deleting service Secret: %w", secErr)
+	}
 	return nil
 }
 
-// AddBinding adds a binding to a service instance.
+// AddBinding adds a binding to a service instance with conflict retry.
 func (m *Manager) AddBinding(ctx context.Context, serviceName, appName string) error {
-	inst, err := m.Get(ctx, serviceName)
-	if err != nil {
-		return err
-	}
-
-	// Check not already bound
-	for _, b := range inst.Bindings {
-		if b.AppName == appName {
-			return fmt.Errorf("app %q already bound to service %q", appName, serviceName)
-		}
-	}
-
-	inst.Bindings = append(inst.Bindings, models.ServiceBinding{
-		AppName:   appName,
-		SecretRef: serviceSecretPrefix + serviceName,
-		BoundAt:   time.Now(),
+	return m.retryOnConflict(ctx, serviceName, func(inst *models.ServiceInstance) {
+		inst.Bindings = append(inst.Bindings, models.ServiceBinding{
+			AppName:   appName,
+			SecretRef: SecretName(serviceName),
+			BoundAt:   time.Now(),
+		})
 	})
-	inst.UpdatedAt = time.Now()
-	return m.save(ctx, inst)
 }
 
-// RemoveBinding removes a binding from a service instance.
+// RemoveBinding removes a binding from a service instance with conflict retry.
 func (m *Manager) RemoveBinding(ctx context.Context, serviceName, appName string) error {
-	inst, err := m.Get(ctx, serviceName)
-	if err != nil {
-		return err
-	}
-
-	var updated []models.ServiceBinding
-	found := false
-	for _, b := range inst.Bindings {
-		if b.AppName == appName {
-			found = true
-			continue
+	return m.retryOnConflict(ctx, serviceName, func(inst *models.ServiceInstance) {
+		var updated []models.ServiceBinding
+		for _, b := range inst.Bindings {
+			if b.AppName != appName {
+				updated = append(updated, b)
+			}
 		}
-		updated = append(updated, b)
-	}
-	if !found {
-		return fmt.Errorf("app %q not bound to service %q", appName, serviceName)
-	}
-
-	inst.Bindings = updated
-	inst.UpdatedAt = time.Now()
-	return m.save(ctx, inst)
+		inst.Bindings = updated
+	})
 }
 
-func (m *Manager) save(ctx context.Context, inst *models.ServiceInstance) error {
-	data, err := json.Marshal(inst)
-	if err != nil {
-		return err
-	}
+// retryOnConflict performs a read-modify-write with resourceVersion conflict retry.
+func (m *Manager) retryOnConflict(ctx context.Context, name string, mutate func(*models.ServiceInstance)) error {
+	for i := 0; i < maxRetries; i++ {
+		cm, err := m.k8sClient.Clientset.CoreV1().ConfigMaps(m.k8sClient.Namespace).Get(ctx, serviceConfigMapPrefix+name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
 
-	cm, err := m.k8sClient.Clientset.CoreV1().ConfigMaps(m.k8sClient.Namespace).Get(ctx, serviceConfigMapPrefix+inst.Name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
+		var inst models.ServiceInstance
+		if data, ok := cm.Data["instance"]; ok {
+			if err := json.Unmarshal([]byte(data), &inst); err != nil {
+				return fmt.Errorf("unmarshalling service instance: %w", err)
+			}
+		} else {
+			return fmt.Errorf("service instance %q has corrupted metadata", name)
+		}
 
-	cm.Data["instance"] = string(data)
-	_, err = m.k8sClient.Clientset.CoreV1().ConfigMaps(m.k8sClient.Namespace).Update(ctx, cm, metav1.UpdateOptions{})
-	return err
+		mutate(&inst)
+		inst.UpdatedAt = time.Now()
+
+		data, err := json.Marshal(&inst)
+		if err != nil {
+			return err
+		}
+		cm.Data["instance"] = string(data)
+
+		// Update with resourceVersion — K8s rejects if another write happened since our Get
+		_, err = m.k8sClient.Clientset.CoreV1().ConfigMaps(m.k8sClient.Namespace).Update(ctx, cm, metav1.UpdateOptions{})
+		if err == nil {
+			return nil
+		}
+		if !errors.IsConflict(err) {
+			return err
+		}
+		// Conflict — retry with fresh read
+	}
+	return fmt.Errorf("conflict: too many retries updating service %q", name)
 }

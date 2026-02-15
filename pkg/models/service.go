@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"regexp"
+	"time"
+)
 
 // Service status constants
 const (
@@ -10,6 +13,12 @@ const (
 	ServiceStatusDeleting  = "deleting"
 	ServiceStatusDeleted   = "deleted"
 )
+
+// ServiceSecretPrefix is the K8s Secret name prefix for service credentials.
+const ServiceSecretPrefix = "mf-svc-"
+
+// ValidServiceName matches valid service instance names (lowercase alphanumeric + hyphens, 2-42 chars).
+var ValidServiceName = regexp.MustCompile(`^[a-z][a-z0-9-]{0,40}[a-z0-9]$`)
 
 // ServiceBindingInfo represents a service bound to an app (display only).
 type ServiceBindingInfo struct {
@@ -67,6 +76,13 @@ type ServiceInstance struct {
 	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
+// Redacted returns a copy with sensitive fields masked.
+func (si *ServiceInstance) Redacted() ServiceInstance {
+	out := *si
+	out.Outputs = si.Outputs.Redacted()
+	return out
+}
+
 // ServiceOutputs holds the provisioned resource connection details.
 type ServiceOutputs struct {
 	Host     string `json:"host,omitempty"`
@@ -75,6 +91,18 @@ type ServiceOutputs struct {
 	Password string `json:"password,omitempty"`
 	Database string `json:"database,omitempty"`
 	URI      string `json:"uri,omitempty"`
+}
+
+// Redacted returns a copy with password and URI masked.
+func (o ServiceOutputs) Redacted() ServiceOutputs {
+	out := o
+	if out.Password != "" {
+		out.Password = "********"
+	}
+	if out.URI != "" {
+		out.URI = "********"
+	}
+	return out
 }
 
 // ServiceBinding represents a binding between an app and a service instance.

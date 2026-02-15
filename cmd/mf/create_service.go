@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -19,6 +21,11 @@ func createServiceCmd() *cobra.Command {
 			serviceType := args[0]
 			plan := args[1]
 			name := args[2]
+
+			// Validate instance name
+			if !models.ValidServiceName.MatchString(name) {
+				return fmt.Errorf("invalid service name %q: must be lowercase alphanumeric with hyphens, 2-42 characters", name)
+			}
 
 			// Validate service type and plan exist
 			_, ok := service.FindServiceType(serviceType)
@@ -60,13 +67,14 @@ func createServiceCmd() *cobra.Command {
 
 			// For now, immediately set to available with mock outputs
 			// In production, this would trigger async Terraform apply
+			password := generateCLIPassword(24)
 			outputs := models.ServiceOutputs{
 				Host:     fmt.Sprintf("%s.cluster.local", name),
 				Port:     3306,
 				Username: "admin",
-				Password: "changeme",
+				Password: password,
 				Database: name,
-				URI:      fmt.Sprintf("mysql://admin:changeme@%s.cluster.local:3306/%s", name, name),
+				URI:      fmt.Sprintf("mysql://admin:%s@%s.cluster.local:3306/%s", password, name, name),
 			}
 
 			if err := mgr.SaveOutputs(ctx, name, outputs); err != nil {
@@ -84,4 +92,12 @@ func createServiceCmd() *cobra.Command {
 	}
 
 	return cmd
+}
+
+func generateCLIPassword(length int) string {
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return "fallback-change-me"
+	}
+	return hex.EncodeToString(b)[:length]
 }

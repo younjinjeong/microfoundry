@@ -79,7 +79,6 @@ func serviceCmd() *cobra.Command {
 				fmt.Printf("  port:       %d\n", inst.Outputs.Port)
 				fmt.Printf("  database:   %s\n", inst.Outputs.Database)
 				fmt.Printf("  username:   %s\n", inst.Outputs.Username)
-				fmt.Printf("  uri:        %s\n", inst.Outputs.URI)
 			}
 
 			if len(inst.Bindings) > 0 {

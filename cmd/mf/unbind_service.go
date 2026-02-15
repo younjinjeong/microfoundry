@@ -29,7 +29,7 @@ func unbindServiceCmd() *cobra.Command {
 			fmt.Printf("Unbinding service '%s' from app '%s'...\n", svcName, appName)
 
 			// Remove credentials from deployment
-			secretName := "mf-svc-" + svcName
+			secretName := service.SecretName(svcName)
 			if err := binder.Unbind(ctx, appName, secretName); err != nil {
 				return fmt.Errorf("unbinding from deployment: %w", err)
 			}

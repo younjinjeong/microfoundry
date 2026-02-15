@@ -1,12 +1,24 @@
 package admin
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/younjinjeong/microfoundry/pkg/models"
 	"github.com/younjinjeong/microfoundry/pkg/service"
 )
+
+// generatePassword returns a cryptographically random hex password.
+func generatePassword(length int) string {
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return "fallback-change-me" // should never happen
+	}
+	return hex.EncodeToString(b)[:length]
+}
 
 // ServicesListHandler shows all provisioned service instances.
 func (s *Server) ServicesListHandler(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +33,8 @@ func (s *Server) ServicesListHandler(w http.ResponseWriter, r *http.Request) {
 	mgr := service.NewManager(client)
 	items, err := mgr.List(ctx)
 	if err != nil {
-		items = []models.ServiceListItem{} // empty on error
+		log.Printf("error listing services: %v", err)
+		items = []models.ServiceListItem{}
 	}
 
 	data := s.pageData("Backing Services", "services")
@@ -84,6 +97,11 @@ func (s *Server) CreateServiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !models.ValidServiceName.MatchString(name) {
+		http.Error(w, "invalid service name: must be lowercase alphanumeric with hyphens, 2-42 characters", http.StatusBadRequest)
+		return
+	}
+
 	_, ok := service.FindServiceType(serviceType)
 	if !ok {
 		http.Error(w, fmt.Sprintf("unknown service type: %s", serviceType), http.StatusBadRequest)
@@ -120,17 +138,22 @@ func (s *Server) CreateServiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mock outputs (will be replaced by Terraform in future)
+	// Mock outputs with per-instance random password (will be replaced by Terraform)
+	password := generatePassword(24)
 	outputs := models.ServiceOutputs{
 		Host:     fmt.Sprintf("%s.cluster.local", name),
 		Port:     3306,
 		Username: "admin",
-		Password: "changeme",
+		Password: password,
 		Database: name,
-		URI:      fmt.Sprintf("mysql://admin:changeme@%s.cluster.local:3306/%s", name, name),
+		URI:      fmt.Sprintf("mysql://admin:%s@%s.cluster.local:3306/%s", password, name, name),
 	}
-	_ = mgr.SaveOutputs(ctx, name, outputs)
-	_ = mgr.UpdateStatus(ctx, name, models.ServiceStatusAvailable, "")
+	if err := mgr.SaveOutputs(ctx, name, outputs); err != nil {
+		log.Printf("error saving service outputs for %q: %v", name, err)
+	}
+	if err := mgr.UpdateStatus(ctx, name, models.ServiceStatusAvailable, ""); err != nil {
+		log.Printf("error updating service status for %q: %v", name, err)
+	}
 
 	w.Header().Set("HX-Redirect", "/services/"+name)
 	w.WriteHeader(http.StatusOK)
@@ -171,7 +194,7 @@ func (s *Server) BindServiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	secretName := "mf-svc-" + name
+	secretName := service.SecretName(name)
 	if err := binder.Bind(ctx, appName, secretName); err != nil {
 		_ = mgr.RemoveBinding(ctx, name, appName)
 		http.Error(w, "binding to deployment: "+err.Error(), http.StatusInternalServerError)
@@ -202,7 +225,7 @@ func (s *Server) UnbindServiceHandler(w http.ResponseWriter, r *http.Request) {
 	mgr := service.NewManager(client)
 	binder := service.NewBinder(client)
 
-	secretName := "mf-svc-" + name
+	secretName := service.SecretName(name)
 	if err := binder.Unbind(ctx, appName, secretName); err != nil {
 		http.Error(w, "unbinding from deployment: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -271,7 +294,7 @@ func (s *Server) APIServicesListHandler(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, items)
 }
 
-// APIServiceDetailHandler returns a single service instance as JSON.
+// APIServiceDetailHandler returns a single service instance as JSON (credentials redacted).
 func (s *Server) APIServiceDetailHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	name := r.PathValue("name")
@@ -289,7 +312,9 @@ func (s *Server) APIServiceDetailHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, inst)
+	// Redact sensitive fields in API response
+	redacted := inst.Redacted()
+	writeJSON(w, http.StatusOK, redacted)
 }
 
 // APIMarketplaceHandler returns the service catalog as JSON.

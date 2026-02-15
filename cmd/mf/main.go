@@ -16,7 +16,15 @@ func main() {
 		Version: version,
 	}
 
-	rootCmd.AddCommand(versionCmd())
+	rootCmd.AddCommand(
+		versionCmd(),
+		pushCmd(),
+		appsCmd(),
+		appCmd(),
+		logsCmd(),
+		deleteCmd(),
+		scaleCmd(),
+	)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -1,0 +1,8 @@
+applications:
+  - name: hello-world
+    memory: 128M
+    instances: 1
+    routes:
+      - route: hello-world.cf-local.dev
+    env:
+      PORT: "8080"

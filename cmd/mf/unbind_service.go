@@ -24,13 +24,12 @@ func unbindServiceCmd() *cobra.Command {
 			}
 
 			mgr := service.NewManager(k8sClient)
-			binder := service.NewBinder(k8sClient)
+			binder := service.NewBinder(k8sClient, mgr)
 
 			fmt.Printf("Unbinding service '%s' from app '%s'...\n", svcName, appName)
 
-			// Remove credentials from deployment
-			secretName := service.SecretName(svcName)
-			if err := binder.Unbind(ctx, appName, secretName); err != nil {
+			// Remove credentials from deployment (envFrom + VCAP_SERVICES)
+			if err := binder.Unbind(ctx, appName, svcName); err != nil {
 				return fmt.Errorf("unbinding from deployment: %w", err)
 			}
 

@@ -25,7 +25,7 @@ func bindServiceCmd() *cobra.Command {
 			}
 
 			mgr := service.NewManager(k8sClient)
-			binder := service.NewBinder(k8sClient)
+			binder := service.NewBinder(k8sClient, mgr)
 
 			// Verify service exists and is available
 			inst, err := mgr.Get(ctx, svcName)
@@ -43,9 +43,8 @@ func bindServiceCmd() *cobra.Command {
 				return fmt.Errorf("adding binding: %w", err)
 			}
 
-			// Inject credentials into deployment
-			secretName := service.SecretName(svcName)
-			if err := binder.Bind(ctx, appName, secretName); err != nil {
+			// Inject credentials into deployment (envFrom + VCAP_SERVICES)
+			if err := binder.Bind(ctx, appName, svcName); err != nil {
 				// Rollback binding metadata
 				_ = mgr.RemoveBinding(ctx, svcName, appName)
 				return fmt.Errorf("binding to deployment: %w", err)
@@ -53,6 +52,7 @@ func bindServiceCmd() *cobra.Command {
 
 			fmt.Printf("Service '%s' bound to app '%s'.\n", svcName, appName)
 			fmt.Printf("The app will restart to pick up the new environment variables.\n")
+			fmt.Printf("VCAP_SERVICES has been injected with credentials for '%s'.\n", svcName)
 			return nil
 		},
 	}

@@ -35,7 +35,7 @@ func deleteServiceCmd() *cobra.Command {
 				return fmt.Errorf("service %q has %d active binding(s) — unbind all apps first", name, len(inst.Bindings))
 			}
 
-			fmt.Printf("Deleting service instance '%s'...\n", name)
+			fmt.Printf("Deleting service instance '%s' (deprovisioning K8s resources)...\n", name)
 
 			if err := mgr.Delete(ctx, name); err != nil {
 				return fmt.Errorf("deleting service: %w", err)

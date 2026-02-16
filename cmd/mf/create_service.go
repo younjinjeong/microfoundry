@@ -2,9 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/younjinjeong/microfoundry/pkg/models"
@@ -57,47 +56,43 @@ func createServiceCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Creating service instance '%s'...\n", name)
-			fmt.Printf("  Service: %s\n", serviceType)
-			fmt.Printf("  Plan:    %s (%s)\n", plan, planInfo.InstanceClass)
-			fmt.Printf("  Cost:    %s\n", planInfo.CostEstimate)
+			fmt.Printf("  Service:  %s\n", serviceType)
+			fmt.Printf("  Plan:     %s\n", planInfo.Name)
+			fmt.Printf("  Memory:   %dMi\n", planInfo.Resources.MemoryMB)
+			fmt.Printf("  CPU:      %dm\n", planInfo.Resources.CPUMillis)
+			if planInfo.Resources.StorageGB > 0 {
+				fmt.Printf("  Storage:  %dGi\n", planInfo.Resources.StorageGB)
+			}
+			fmt.Printf("  Cost:     %s\n", planInfo.CostEstimate)
 
 			if err := mgr.Create(ctx, inst); err != nil {
 				return fmt.Errorf("creating service: %w", err)
 			}
 
-			// For now, immediately set to available with mock outputs
-			// In production, this would trigger async Terraform apply
-			password := generateCLIPassword(24)
-			outputs := models.ServiceOutputs{
-				Host:     fmt.Sprintf("%s.cluster.local", name),
-				Port:     3306,
-				Username: "admin",
-				Password: password,
-				Database: name,
-				URI:      fmt.Sprintf("mysql://admin:%s@%s.cluster.local:3306/%s", password, name, name),
+			// Wait for provisioning to complete
+			fmt.Printf("\nProvisioning")
+			result, err := mgr.WaitForStatus(ctx, name, models.ServiceStatusAvailable, 120*time.Second)
+			fmt.Println()
+
+			if err != nil {
+				return fmt.Errorf("provisioning service: %w", err)
 			}
 
-			if err := mgr.SaveOutputs(ctx, name, outputs); err != nil {
-				fmt.Printf("  Warning: could not save outputs: %v\n", err)
-			}
-
-			if err := mgr.UpdateStatus(ctx, name, models.ServiceStatusAvailable, ""); err != nil {
-				fmt.Printf("  Warning: could not update status: %v\n", err)
+			if result.Status == models.ServiceStatusFailed {
+				return fmt.Errorf("provisioning failed: %s", result.StatusMsg)
 			}
 
 			fmt.Printf("\nService instance '%s' created successfully.\n", name)
-			fmt.Printf("Use 'mf bind-service <app-name> %s' to bind it to an application.\n", name)
+			if result.Outputs.Host != "" {
+				fmt.Printf("  Host: %s\n", result.Outputs.Host)
+			}
+			if result.Outputs.Port > 0 {
+				fmt.Printf("  Port: %d\n", result.Outputs.Port)
+			}
+			fmt.Printf("\nUse 'mf bind-service <app-name> %s' to bind it to an application.\n", name)
 			return nil
 		},
 	}
 
 	return cmd
-}
-
-func generateCLIPassword(length int) string {
-	b := make([]byte, length)
-	if _, err := rand.Read(b); err != nil {
-		return "fallback-change-me"
-	}
-	return hex.EncodeToString(b)[:length]
 }

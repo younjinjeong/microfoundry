@@ -20,24 +20,43 @@ func marketplaceCmd() *cobra.Command {
 				return nil
 			}
 
-			for _, svc := range catalog {
-				fmt.Printf("\n%s  (%s)\n", svc.Name, svc.ID)
-				fmt.Printf("  %s\n", svc.Description)
-				fmt.Printf("  Provider: %s  |  Category: %s\n", svc.Provider, svc.Category)
-				fmt.Println()
-				fmt.Printf("  %-15s %-20s %-10s %-10s %-8s %s\n", "PLAN", "INSTANCE", "STORAGE", "REPLICAS", "AZ", "COST")
-				for _, p := range svc.Plans {
-					replicas := "none"
-					if p.Replicas > 0 {
-						replicas = fmt.Sprintf("%d", p.Replicas)
+			// Group by category
+			categories := []struct {
+				name  string
+				label string
+			}{
+				{"database", "Databases"},
+				{"cache", "Caches"},
+				{"messaging", "Messaging"},
+				{"storage", "Storage"},
+				{"gateway", "API Gateways"},
+			}
+
+			for _, cat := range categories {
+				printed := false
+				for _, svc := range catalog {
+					if svc.Category != cat.name {
+						continue
 					}
-					az := "single"
-					if p.MultiAZ {
-						az = "multi"
+					if !printed {
+						fmt.Printf("\n=== %s ===\n", cat.label)
+						printed = true
 					}
-					fmt.Printf("  %-15s %-20s %-10s %-10s %-8s %s\n",
-						p.ID, p.InstanceClass, fmt.Sprintf("%dGB", p.StorageGB),
-						replicas, az, p.CostEstimate)
+					fmt.Printf("\n  %s  (%s)\n", svc.Name, svc.ID)
+					fmt.Printf("    %s\n\n", svc.Description)
+					fmt.Printf("    %-12s %-8s %-8s %-10s %s\n", "PLAN", "MEMORY", "CPU", "STORAGE", "COST")
+					for _, p := range svc.Plans {
+						stor := "—"
+						if p.Resources.StorageGB > 0 {
+							stor = fmt.Sprintf("%dGi", p.Resources.StorageGB)
+						}
+						fmt.Printf("    %-12s %-8s %-8s %-10s %s\n",
+							p.ID,
+							fmt.Sprintf("%dMi", p.Resources.MemoryMB),
+							fmt.Sprintf("%dm", p.Resources.CPUMillis),
+							stor,
+							p.CostEstimate)
+					}
 				}
 			}
 			fmt.Println()

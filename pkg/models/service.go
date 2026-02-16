@@ -34,22 +34,25 @@ type ServiceType struct {
 	Description string        `json:"description"`
 	Provider    string        `json:"provider"`
 	Category    string        `json:"category"`
+	Label       string        `json:"label"` // VCAP_SERVICES label (e.g., "mariadb")
 	Plans       []ServicePlan `json:"plans"`
 	Tags        []string      `json:"tags,omitempty"`
 }
 
 // ServicePlan defines a sizing tier within a service type.
 type ServicePlan struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	Description   string            `json:"description"`
-	InstanceClass string            `json:"instance_class"`
-	StorageGB     int               `json:"storage_gb"`
-	Replicas      int               `json:"replicas"`
-	MultiAZ       bool              `json:"multi_az"`
-	CostEstimate  string            `json:"cost_estimate"`
-	Customizable  bool              `json:"customizable"`
-	Defaults      map[string]string `json:"defaults,omitempty"`
+	ID           string        `json:"id"`
+	Name         string        `json:"name"`
+	Description  string        `json:"description"`
+	Resources    PlanResources `json:"resources"`
+	CostEstimate string        `json:"cost_estimate"`
+}
+
+// PlanResources defines K8s resource allocation for a service plan.
+type PlanResources struct {
+	MemoryMB  int `json:"memory_mb"`  // container memory limit in MiB
+	CPUMillis int `json:"cpu_millis"` // container CPU request in millicores
+	StorageGB int `json:"storage_gb"` // PVC size in GiB, 0 = no PVC
 }
 
 // ServiceInstance represents a provisioned backing service.
@@ -77,12 +80,13 @@ func (si *ServiceInstance) Redacted() ServiceInstance {
 
 // ServiceOutputs holds the provisioned resource connection details.
 type ServiceOutputs struct {
-	Host     string `json:"host,omitempty"`
-	Port     int    `json:"port,omitempty"`
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	Database string `json:"database,omitempty"`
-	URI      string `json:"uri,omitempty"`
+	Host     string            `json:"host,omitempty"`
+	Port     int               `json:"port,omitempty"`
+	Username string            `json:"username,omitempty"`
+	Password string            `json:"password,omitempty"`
+	Database string            `json:"database,omitempty"`
+	URI      string            `json:"uri,omitempty"`
+	Extra    map[string]string `json:"extra,omitempty"` // service-specific: access_key, bucket, mgmt_url, etc.
 }
 
 // Redacted returns a copy with password and URI masked.

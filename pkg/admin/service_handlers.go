@@ -1,8 +1,6 @@
 package admin
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,15 +8,6 @@ import (
 	"github.com/younjinjeong/microfoundry/pkg/models"
 	"github.com/younjinjeong/microfoundry/pkg/service"
 )
-
-// generatePassword returns a cryptographically random hex password.
-func generatePassword(length int) string {
-	b := make([]byte, length)
-	if _, err := rand.Read(b); err != nil {
-		return "fallback-change-me" // should never happen
-	}
-	return hex.EncodeToString(b)[:length]
-}
 
 // ServicesListHandler shows all provisioned service instances.
 func (s *Server) ServicesListHandler(w http.ResponseWriter, r *http.Request) {
@@ -138,23 +127,7 @@ func (s *Server) CreateServiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mock outputs with per-instance random password (will be replaced by Terraform)
-	password := generatePassword(24)
-	outputs := models.ServiceOutputs{
-		Host:     fmt.Sprintf("%s.cluster.local", name),
-		Port:     3306,
-		Username: "admin",
-		Password: password,
-		Database: name,
-		URI:      fmt.Sprintf("mysql://admin:%s@%s.cluster.local:3306/%s", password, name, name),
-	}
-	if err := mgr.SaveOutputs(ctx, name, outputs); err != nil {
-		log.Printf("error saving service outputs for %q: %v", name, err)
-	}
-	if err := mgr.UpdateStatus(ctx, name, models.ServiceStatusAvailable, ""); err != nil {
-		log.Printf("error updating service status for %q: %v", name, err)
-	}
-
+	// Provisioning happens async in manager.Create — redirect to detail page
 	w.Header().Set("HX-Redirect", "/services/"+name)
 	w.WriteHeader(http.StatusOK)
 }
@@ -177,7 +150,7 @@ func (s *Server) BindServiceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mgr := service.NewManager(client)
-	binder := service.NewBinder(client)
+	binder := service.NewBinder(client, mgr)
 
 	inst, err := mgr.Get(ctx, name)
 	if err != nil {
@@ -194,8 +167,7 @@ func (s *Server) BindServiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	secretName := service.SecretName(name)
-	if err := binder.Bind(ctx, appName, secretName); err != nil {
+	if err := binder.Bind(ctx, appName, name); err != nil {
 		_ = mgr.RemoveBinding(ctx, name, appName)
 		http.Error(w, "binding to deployment: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -223,10 +195,9 @@ func (s *Server) UnbindServiceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mgr := service.NewManager(client)
-	binder := service.NewBinder(client)
+	binder := service.NewBinder(client, mgr)
 
-	secretName := service.SecretName(name)
-	if err := binder.Unbind(ctx, appName, secretName); err != nil {
+	if err := binder.Unbind(ctx, appName, name); err != nil {
 		http.Error(w, "unbinding from deployment: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

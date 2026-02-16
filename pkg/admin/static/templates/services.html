@@ -50,7 +50,7 @@
                     <button hx-delete="/services/{{.Name}}"
                             hx-target="#svc-row-{{.Name}}"
                             hx-swap="outerHTML swap:0.3s"
-                            hx-confirm="Delete service '{{.Name}}'? This cannot be undone."
+                            hx-confirm="Delete service '{{.Name}}'? This will deprovision the K8s resources."
                             class="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
                 </td>
             </tr>
@@ -65,7 +65,7 @@
     </svg>
     <h3 class="text-xl font-bold text-gray-900 mt-2">No Services Provisioned</h3>
     <p class="text-gray-500 mt-2 max-w-md mx-auto">
-        You haven't created any backing services yet. Browse the marketplace to provision databases, caches, and more.
+        You haven't created any backing services yet. Browse the marketplace to provision databases, caches, message queues, and more.
     </p>
     <div class="mt-6">
         <a href="/marketplace" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">

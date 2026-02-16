@@ -26,7 +26,7 @@
         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {{stateBg $inst.Status}}">{{$inst.Status}}</span>
         {{if eq (len $inst.Bindings) 0}}
         <button hx-delete="/services/{{$inst.Name}}"
-                hx-confirm="Delete service '{{$inst.Name}}'? This cannot be undone."
+                hx-confirm="Delete service '{{$inst.Name}}'? This will deprovision K8s resources."
                 class="inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 rounded-md hover:bg-red-50 text-sm font-medium">
             Delete
         </button>
@@ -62,30 +62,22 @@
                         <dt class="text-xs font-medium text-gray-500 uppercase">Created</dt>
                         <dd class="mt-1 text-sm text-gray-900">{{timeAgo $inst.CreatedAt}}</dd>
                     </div>
-                    {{if $plan.InstanceClass}}
+                    {{if $plan.Resources.MemoryMB}}
                     <div>
-                        <dt class="text-xs font-medium text-gray-500 uppercase">Instance Class</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{$plan.InstanceClass}}</dd>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">Memory</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{$plan.Resources.MemoryMB}}Mi</dd>
                     </div>
                     {{end}}
-                    {{if $plan.StorageGB}}
+                    {{if $plan.Resources.CPUMillis}}
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase">CPU</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{$plan.Resources.CPUMillis}}m</dd>
+                    </div>
+                    {{end}}
+                    {{if $plan.Resources.StorageGB}}
                     <div>
                         <dt class="text-xs font-medium text-gray-500 uppercase">Storage</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{$plan.StorageGB}} GB</dd>
-                    </div>
-                    {{end}}
-                    {{if $plan.MultiAZ}}
-                    <div>
-                        <dt class="text-xs font-medium text-gray-500 uppercase">Multi-AZ</dt>
-                        <dd class="mt-1 text-sm text-gray-900">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Enabled</span>
-                        </dd>
-                    </div>
-                    {{end}}
-                    {{if $plan.Replicas}}
-                    <div>
-                        <dt class="text-xs font-medium text-gray-500 uppercase">Read Replicas</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{$plan.Replicas}}</dd>
+                        <dd class="mt-1 text-sm text-gray-900">{{$plan.Resources.StorageGB}}Gi</dd>
                     </div>
                     {{end}}
                     {{if $plan.CostEstimate}}
@@ -117,14 +109,18 @@
                         <dd class="text-sm text-gray-900 font-mono">{{$inst.Outputs.Port}}</dd>
                     </div>
                     {{end}}
+                    {{if $inst.Outputs.Database}}
                     <div class="flex">
                         <dt class="w-24 text-sm font-medium text-gray-500">Database</dt>
                         <dd class="text-sm text-gray-900 font-mono">{{$inst.Outputs.Database}}</dd>
                     </div>
+                    {{end}}
+                    {{if $inst.Outputs.Username}}
                     <div class="flex">
                         <dt class="w-24 text-sm font-medium text-gray-500">Username</dt>
                         <dd class="text-sm text-gray-900 font-mono">{{$inst.Outputs.Username}}</dd>
                     </div>
+                    {{end}}
                     <div class="flex">
                         <dt class="w-24 text-sm font-medium text-gray-500">Password</dt>
                         <dd class="text-sm text-gray-400 italic">********</dd>
@@ -135,7 +131,30 @@
                         <dd class="text-sm text-gray-400 italic">****hidden****</dd>
                     </div>
                     {{end}}
+                    {{range $key, $val := $inst.Outputs.Extra}}
+                    <div class="flex">
+                        <dt class="w-24 text-sm font-medium text-gray-500">{{$key}}</dt>
+                        <dd class="text-sm text-gray-900 font-mono">{{$val}}</dd>
+                    </div>
+                    {{end}}
                 </dl>
+            </div>
+        </div>
+        {{end}}
+
+        <!-- VCAP_SERVICES Preview -->
+        {{if $inst.Bindings}}
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide">VCAP_SERVICES</h3>
+            </div>
+            <div class="px-6 py-4">
+                <p class="text-sm text-gray-500 mb-3">
+                    This service is injected into bound applications via the <code class="text-xs bg-gray-100 px-1 py-0.5 rounded">VCAP_SERVICES</code> environment variable (CloudFoundry compatible).
+                </p>
+                <div class="bg-gray-50 rounded-md p-4">
+                    <pre class="text-xs text-gray-700 font-mono overflow-x-auto">{"{{$inst.ServiceType}}": [{"name": "{{$inst.Name}}", "label": "{{$inst.ServiceType}}", "plan": "{{$inst.Plan}}", "credentials": {"host": "...", "port": "...", ...}}]}</pre>
+                </div>
             </div>
         </div>
         {{end}}

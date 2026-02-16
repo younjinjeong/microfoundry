@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -26,6 +27,11 @@ type Provisioner struct {
 // NewProvisioner creates a new service provisioner.
 func NewProvisioner(client *k8s.Client) *Provisioner {
 	return &Provisioner{k8sClient: client}
+}
+
+// GatewayConfigMapName returns the ConfigMap name for a gateway instance.
+func GatewayConfigMapName(instanceName string) string {
+	return "mf-gw-config-" + instanceName
 }
 
 // Provision creates K8s Deployment + Service + optional PVC for a service instance.
@@ -52,22 +58,29 @@ func (p *Provisioner) Provision(ctx context.Context, instanceName, serviceTypeID
 		}
 	}
 
-	// 2. Create Deployment
+	// 2. Create gateway ConfigMap if needed
+	if tmpl.IsGateway {
+		if err := p.createGatewayConfigMap(ctx, k8sName, instanceName, tmpl, labels); err != nil {
+			return nil, fmt.Errorf("creating gateway ConfigMap: %w", err)
+		}
+	}
+
+	// 3. Create Deployment
 	if err := p.createDeployment(ctx, k8sName, instanceName, tmpl, plan, password, labels); err != nil {
 		return nil, fmt.Errorf("creating Deployment: %w", err)
 	}
 
-	// 3. Create ClusterIP Service
+	// 4. Create ClusterIP Service
 	if err := p.createService(ctx, k8sName, tmpl, labels); err != nil {
 		return nil, fmt.Errorf("creating Service: %w", err)
 	}
 
-	// 4. Wait for readiness
+	// 5. Wait for readiness
 	if err := p.waitForReady(ctx, k8sName, 90*time.Second); err != nil {
 		return nil, fmt.Errorf("waiting for readiness: %w", err)
 	}
 
-	// 5. Build outputs
+	// 6. Build outputs
 	host := fmt.Sprintf("%s.%s.svc.cluster.local", k8sName, p.k8sClient.Namespace)
 	outputs := tmpl.BuildOutputs(host, int(tmpl.ServicePort), password, instanceName)
 	return outputs, nil
@@ -96,6 +109,13 @@ func (p *Provisioner) Deprovision(ctx context.Context, instanceName string) erro
 	err = p.k8sClient.Clientset.CoreV1().PersistentVolumeClaims(ns).Delete(ctx, k8sName, opts)
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("deleting PVC: %w", err)
+	}
+
+	// Delete gateway ConfigMap (no-op if not a gateway)
+	gwCmName := GatewayConfigMapName(instanceName)
+	err = p.k8sClient.Clientset.CoreV1().ConfigMaps(ns).Delete(ctx, gwCmName, opts)
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("deleting gateway ConfigMap: %w", err)
 	}
 
 	return nil
@@ -225,6 +245,24 @@ func (p *Provisioner) createDeployment(ctx context.Context, k8sName, instanceNam
 		}
 	}
 
+	// Volume mount for gateway ConfigMap
+	if tmpl.IsGateway && tmpl.ConfigMountPath != "" {
+		cmName := GatewayConfigMapName(instanceName)
+		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+			Name:      "gateway-config",
+			MountPath: tmpl.ConfigMountPath,
+			ReadOnly:  true,
+		})
+		volumes = append(volumes, corev1.Volume{
+			Name: "gateway-config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
+				},
+			},
+		})
+	}
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k8sName,
@@ -306,6 +344,34 @@ func (p *Provisioner) waitForReady(ctx context.Context, k8sName string, timeout 
 		time.Sleep(2 * time.Second)
 	}
 	return fmt.Errorf("timeout waiting for %s to become ready", k8sName)
+}
+
+func (p *Provisioner) createGatewayConfigMap(ctx context.Context, k8sName, instanceName string, tmpl ServiceTemplate, labels map[string]string) error {
+	ns := p.k8sClient.Namespace
+	cmName := GatewayConfigMapName(instanceName)
+
+	// Empty routes → initial config (Kong: empty services, Nginx: 404 catch-all)
+	emptyRoutes, _ := json.Marshal([]models.GatewayRoute{})
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cmName,
+			Namespace: ns,
+			Labels:    labels,
+		},
+		Data: map[string]string{
+			tmpl.ConfigFileName: tmpl.BuildConfig(nil),
+			"routes":            string(emptyRoutes),
+		},
+	}
+
+	existing, err := p.k8sClient.Clientset.CoreV1().ConfigMaps(ns).Get(ctx, cmName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		_, err = p.k8sClient.Clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
+	} else if err == nil {
+		cm.ResourceVersion = existing.ResourceVersion
+		_, err = p.k8sClient.Clientset.CoreV1().ConfigMaps(ns).Update(ctx, cm, metav1.UpdateOptions{})
+	}
+	return err
 }
 
 func generatePassword(length int) string {

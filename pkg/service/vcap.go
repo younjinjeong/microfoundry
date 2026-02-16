@@ -18,7 +18,8 @@ type VCAPServiceEntry struct {
 }
 
 // BuildVCAPServices constructs the VCAP_SERVICES JSON for the given bound service names.
-func BuildVCAPServices(ctx context.Context, mgr *Manager, secretsMgr *secrets.Manager, serviceNames []string) (string, error) {
+// appName is used to enrich gateway credentials with the app-specific proxy URL.
+func BuildVCAPServices(ctx context.Context, mgr *Manager, secretsMgr *secrets.Manager, appName string, serviceNames []string) (string, error) {
 	vcap := make(map[string][]VCAPServiceEntry)
 
 	for _, svcName := range serviceNames {
@@ -48,6 +49,17 @@ func BuildVCAPServices(ctx context.Context, mgr *Manager, secretsMgr *secrets.Ma
 				continue
 			}
 			creds[key] = val
+		}
+
+		// Enrich gateway credentials with app-specific proxy URL
+		tmpl, hasTmpl := GetTemplate(inst.ServiceType)
+		if hasTmpl && tmpl.IsGateway && appName != "" {
+			if proxyURL, ok := creds["proxy_url"]; ok {
+				creds["app_proxy_url"] = proxyURL + "/" + appName
+			}
+			if url, ok := creds["url"]; ok {
+				creds["app_proxy_url"] = url + "/" + appName
+			}
 		}
 
 		entry := VCAPServiceEntry{

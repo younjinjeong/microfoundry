@@ -62,18 +62,18 @@ func (s *Server) ServiceDetailHandler(w http.ResponseWriter, r *http.Request) {
 	s.templates.Render(w, "service_detail.html", data)
 }
 
-// MarketplaceHandler shows the service catalog.
-func (s *Server) MarketplaceHandler(w http.ResponseWriter, r *http.Request) {
+// CatalogHandler shows the service catalog.
+func (s *Server) CatalogHandler(w http.ResponseWriter, r *http.Request) {
 	catalog := service.Catalog()
 
-	data := s.pageData("Service Marketplace", "marketplace")
+	data := s.pageData("Service Catalog", "catalog")
 	data.Content = map[string]any{
 		"Catalog": catalog,
 	}
-	s.templates.Render(w, "marketplace.html", data)
+	s.templates.Render(w, "catalog.html", data)
 }
 
-// CreateServiceHandler provisions a new service instance from the marketplace.
+// CreateServiceHandler provisions a new service instance from the catalog.
 func (s *Server) CreateServiceHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -288,7 +288,7 @@ func (s *Server) APIServiceDetailHandler(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, redacted)
 }
 
-// APIMarketplaceHandler returns the service catalog as JSON.
-func (s *Server) APIMarketplaceHandler(w http.ResponseWriter, r *http.Request) {
+// APICatalogHandler returns the service catalog as JSON.
+func (s *Server) APICatalogHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, service.Catalog())
 }

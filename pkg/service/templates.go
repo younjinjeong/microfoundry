@@ -1,6 +1,11 @@
 package service
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/younjinjeong/microfoundry/pkg/models"
+)
 
 // ServiceTemplate defines how to deploy a service as K8s resources.
 type ServiceTemplate struct {
@@ -13,6 +18,12 @@ type ServiceTemplate struct {
 	PVCMountPath string
 	Probe        ProbeSpec
 	BuildOutputs func(host string, port int, password, instanceName string) map[string]string
+
+	// Gateway-specific fields
+	IsGateway       bool
+	ConfigMountPath string                                          // e.g., "/etc/kong" or "/etc/nginx/conf.d"
+	ConfigFileName  string                                          // e.g., "kong.yml" or "default.conf"
+	BuildConfig     func(routes []models.GatewayRoute) string       // generates declarative config
 }
 
 // ProbeSpec defines a readiness probe for a service container.
@@ -207,13 +218,18 @@ var serviceTemplates = map[string]ServiceTemplate{
 		Ports:       []int32{8000, 8001},
 		ServicePort: 8000,
 		Env: map[string]string{
-			"KONG_DATABASE":       "off",
-			"KONG_PROXY_LISTEN":   "0.0.0.0:8000",
-			"KONG_ADMIN_LISTEN":   "0.0.0.0:8001",
-			"KONG_ADMIN_GUI_URL":  "http://localhost:8002",
+			"KONG_DATABASE":           "off",
+			"KONG_PROXY_LISTEN":       "0.0.0.0:8000",
+			"KONG_ADMIN_LISTEN":       "0.0.0.0:8001",
+			"KONG_ADMIN_GUI_URL":      "http://localhost:8002",
+			"KONG_DECLARATIVE_CONFIG": "/etc/kong/kong.yml",
 		},
-		NeedsPVC: false,
-		Probe:    ProbeSpec{Type: "http", Port: 8001, Path: "/status"},
+		NeedsPVC:        false,
+		Probe:           ProbeSpec{Type: "http", Port: 8001, Path: "/status"},
+		IsGateway:       true,
+		ConfigMountPath: "/etc/kong",
+		ConfigFileName:  "kong.yml",
+		BuildConfig:     buildKongConfig,
 		BuildOutputs: func(host string, port int, password, instanceName string) map[string]string {
 			return map[string]string{
 				"host":       host,
@@ -225,12 +241,16 @@ var serviceTemplates = map[string]ServiceTemplate{
 		},
 	},
 	"nginx": {
-		Image:       "nginx:1-alpine",
-		Ports:       []int32{80},
-		ServicePort: 80,
-		Env:         map[string]string{},
-		NeedsPVC:    false,
-		Probe:       ProbeSpec{Type: "http", Port: 80, Path: "/"},
+		Image:           "nginx:1-alpine",
+		Ports:           []int32{80},
+		ServicePort:     80,
+		Env:             map[string]string{},
+		NeedsPVC:        false,
+		Probe:           ProbeSpec{Type: "tcp", Port: 80},
+		IsGateway:       true,
+		ConfigMountPath: "/etc/nginx/conf.d",
+		ConfigFileName:  "default.conf",
+		BuildConfig:     buildNginxConfig,
 		BuildOutputs: func(host string, port int, password, instanceName string) map[string]string {
 			return map[string]string{
 				"host": host,
@@ -239,4 +259,40 @@ var serviceTemplates = map[string]ServiceTemplate{
 			}
 		},
 	},
+}
+
+func buildKongConfig(routes []models.GatewayRoute) string {
+	if len(routes) == 0 {
+		return "_format_version: \"3.0\"\nservices: []\n"
+	}
+	var sb strings.Builder
+	sb.WriteString("_format_version: \"3.0\"\nservices:\n")
+	for _, r := range routes {
+		sb.WriteString(fmt.Sprintf("  - name: %s\n", r.AppName))
+		sb.WriteString(fmt.Sprintf("    url: %s\n", r.Upstream))
+		sb.WriteString("    routes:\n")
+		sb.WriteString(fmt.Sprintf("      - name: %s-route\n", r.AppName))
+		sb.WriteString("        paths:\n")
+		sb.WriteString(fmt.Sprintf("          - %s\n", r.Path))
+		sb.WriteString("        strip_path: true\n")
+	}
+	return sb.String()
+}
+
+func buildNginxConfig(routes []models.GatewayRoute) string {
+	var sb strings.Builder
+	sb.WriteString("server {\n    listen 80;\n\n")
+	for _, r := range routes {
+		sb.WriteString(fmt.Sprintf("    location %s/ {\n", r.Path))
+		sb.WriteString(fmt.Sprintf("        proxy_pass %s/;\n", r.Upstream))
+		sb.WriteString("        proxy_set_header Host $host;\n")
+		sb.WriteString("        proxy_set_header X-Real-IP $remote_addr;\n")
+		sb.WriteString("        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n")
+		sb.WriteString("        proxy_set_header X-Forwarded-Proto $scheme;\n")
+		sb.WriteString("    }\n\n")
+	}
+	sb.WriteString("    location / {\n")
+	sb.WriteString("        return 404 '{\"error\": \"no route matched\"}';\n")
+	sb.WriteString("    }\n}\n")
+	return sb.String()
 }

@@ -29,7 +29,7 @@ func servicesCmd() *cobra.Command {
 
 			if len(items) == 0 {
 				fmt.Println("No service instances found.")
-				fmt.Println("Use 'mf marketplace' to see available services.")
+				fmt.Println("Use 'mf catalog' to see available services.")
 				return nil
 			}
 

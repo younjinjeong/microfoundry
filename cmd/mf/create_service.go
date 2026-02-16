@@ -29,7 +29,7 @@ func createServiceCmd() *cobra.Command {
 			// Validate service type and plan exist
 			_, ok := service.FindServiceType(serviceType)
 			if !ok {
-				return fmt.Errorf("unknown service type %q — run 'mf marketplace' to see available services", serviceType)
+				return fmt.Errorf("unknown service type %q — run 'mf catalog' to see available services", serviceType)
 			}
 			planInfo, ok := service.FindPlan(serviceType, plan)
 			if !ok {

@@ -7,11 +7,11 @@ import (
 	"github.com/younjinjeong/microfoundry/pkg/service"
 )
 
-func marketplaceCmd() *cobra.Command {
+func catalogCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "marketplace",
+		Use:     "catalog",
 		Short:   "List available backing services and plans",
-		Aliases: []string{"m"},
+		Aliases: []string{"marketplace", "m"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			catalog := service.Catalog()
 

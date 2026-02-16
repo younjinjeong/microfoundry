@@ -27,7 +27,7 @@ func main() {
 		deleteCmd(),
 		scaleCmd(),
 		adminCmd(),
-		marketplaceCmd(),
+		catalogCmd(),
 		createServiceCmd(),
 		servicesCmd(),
 		serviceCmd(),

@@ -57,18 +57,19 @@ type PlanResources struct {
 
 // ServiceInstance represents a provisioned backing service.
 type ServiceInstance struct {
-	Name        string            `json:"name"`
-	ServiceType string            `json:"service_type"`
-	Plan        string            `json:"plan"`
-	Status      string            `json:"status"`
-	StatusMsg   string            `json:"status_message,omitempty"`
-	ClusterID   string            `json:"cluster_id"`
-	Region      string            `json:"region,omitempty"`
-	Parameters  map[string]string `json:"parameters,omitempty"`
-	Outputs     ServiceOutputs    `json:"outputs,omitempty"`
-	Bindings    []ServiceBinding  `json:"bindings,omitempty"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	Name            string            `json:"name"`
+	ServiceType     string            `json:"service_type"`
+	Plan            string            `json:"plan"`
+	Status          string            `json:"status"`
+	StatusMsg       string            `json:"status_message,omitempty"`
+	ClusterID       string            `json:"cluster_id"`
+	Region          string            `json:"region,omitempty"`
+	ProvisionMethod string            `json:"provision_method,omitempty"` // "k8s-native" or "terraform"
+	Parameters      map[string]string `json:"parameters,omitempty"`
+	Outputs         ServiceOutputs    `json:"outputs,omitempty"`
+	Bindings        []ServiceBinding  `json:"bindings,omitempty"`
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
 
 // Redacted returns a copy with sensitive fields masked.
@@ -106,6 +107,13 @@ type ServiceBinding struct {
 	AppName   string    `json:"app_name"`
 	SecretRef string    `json:"secret_ref"`
 	BoundAt   time.Time `json:"bound_at"`
+}
+
+// GatewayRoute represents a single proxy route in a gateway's configuration.
+type GatewayRoute struct {
+	AppName  string `json:"app_name"`
+	Path     string `json:"path"`     // e.g., "/hello-world"
+	Upstream string `json:"upstream"` // e.g., "http://hello-world.microfoundry.svc.cluster.local:80"
 }
 
 // ServiceListItem is a summary view for list pages.

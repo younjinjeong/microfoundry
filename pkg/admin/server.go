@@ -50,7 +50,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /config", s.ConfigHandler)
 	s.mux.HandleFunc("GET /services", s.ServicesListHandler)
 	s.mux.HandleFunc("GET /services/{name}", s.ServiceDetailHandler)
-	s.mux.HandleFunc("GET /marketplace", s.MarketplaceHandler)
+	s.mux.HandleFunc("GET /catalog", s.CatalogHandler)
 	s.mux.HandleFunc("POST /services/create", s.CreateServiceHandler)
 	s.mux.HandleFunc("POST /services/{name}/bind", s.BindServiceHandler)
 	s.mux.HandleFunc("POST /services/{name}/unbind", s.UnbindServiceHandler)
@@ -63,6 +63,15 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /secrets", s.CreateSecretHandler)
 	s.mux.HandleFunc("DELETE /secrets/{name}", s.DeleteSecretHandler)
 	s.mux.HandleFunc("GET /users", s.UsersHandler)
+
+	// Topology routes
+	s.mux.HandleFunc("GET /topologies", s.TopologiesListHandler)
+	s.mux.HandleFunc("GET /topologies/upload", s.TopologyUploadHandler)
+	s.mux.HandleFunc("GET /topologies/{type}/{plan}", s.TopologyDetailHandler)
+	s.mux.HandleFunc("POST /topologies/{type}/{plan}", s.SaveTopologyHandler)
+	s.mux.HandleFunc("POST /topologies/{type}/{plan}/preview", s.TopologyPreviewHandler)
+	s.mux.HandleFunc("POST /topologies/upload", s.UploadTopologyHandler)
+	s.mux.HandleFunc("DELETE /topologies/{type}/{plan}", s.DeleteTopologyHandler)
 
 	// Cluster routes
 	s.mux.HandleFunc("GET /clusters", s.ClustersListHandler)
@@ -85,10 +94,13 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/clusters/{id}/health", s.APIClusterHealthHandler)
 	s.mux.HandleFunc("GET /api/services", s.APIServicesListHandler)
 	s.mux.HandleFunc("GET /api/services/{name}", s.APIServiceDetailHandler)
-	s.mux.HandleFunc("GET /api/marketplace", s.APIMarketplaceHandler)
+	s.mux.HandleFunc("GET /api/catalog", s.APICatalogHandler)
 	s.mux.HandleFunc("GET /api/secrets", s.APISecretsListHandler)
 	s.mux.HandleFunc("GET /api/secrets/{name}", s.APISecretDetailHandler)
 	s.mux.HandleFunc("POST /api/secrets", s.APICreateSecretHandler)
+	s.mux.HandleFunc("GET /api/topologies", s.APITopologiesListHandler)
+	s.mux.HandleFunc("GET /api/topologies/{type}/{plan}", s.APITopologyDetailHandler)
+	s.mux.HandleFunc("PUT /api/topologies/{type}/{plan}", s.APISaveTopologyHandler)
 }
 
 func (s *Server) ListenAndServe(addr string) error {

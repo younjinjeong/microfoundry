@@ -1,0 +1,103 @@
+{{define "topology_upload.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<!-- Breadcrumb -->
+<div class="mb-6">
+    <nav class="text-sm text-gray-500">
+        <a href="/topologies" class="hover:text-blue-600">Topologies</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-900 font-medium">Upload</span>
+    </nav>
+</div>
+
+{{with .Content}}
+<div class="max-w-2xl">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-6">Upload Terraform Topology</h3>
+
+        <form method="POST" action="/topologies/upload" enctype="multipart/form-data" class="space-y-6">
+            <!-- Service Type -->
+            <div>
+                <label for="service_type" class="block text-sm font-medium text-gray-700">Service Type</label>
+                <select id="service_type" name="service_type" required
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Select a service type...</option>
+                    {{range .ServiceTypes}}
+                    <option value="{{.ID}}">{{.Name}} ({{.ID}})</option>
+                    {{end}}
+                </select>
+            </div>
+
+            <!-- Plan -->
+            <div>
+                <label for="plan_id" class="block text-sm font-medium text-gray-700">Plan</label>
+                <select id="plan_id" name="plan_id" required
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Select a plan...</option>
+                    <option value="small">Small (Dev)</option>
+                    <option value="medium">Medium (Staging)</option>
+                    <option value="large">Large (Production)</option>
+                </select>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                <input type="text" id="description" name="description"
+                       placeholder="e.g., HA topology with primary-replica setup"
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <!-- File Upload -->
+            <div>
+                <label for="tf_files" class="block text-sm font-medium text-gray-700">Terraform Files (.tf)</label>
+                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                    <div class="space-y-1 text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <div class="flex text-sm text-gray-600">
+                            <label for="tf_files" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
+                                <span>Upload files</span>
+                                <input id="tf_files" name="tf_files" type="file" multiple accept=".tf" required class="sr-only">
+                            </label>
+                            <p class="pl-1">or drag and drop</p>
+                        </div>
+                        <p class="text-xs text-gray-500">Only .tf files accepted</p>
+                    </div>
+                </div>
+                <div id="file-list" class="mt-2 text-sm text-gray-500"></div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <a href="/topologies" class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
+                    Cancel
+                </a>
+                <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+                    Upload Topology
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('tf_files').addEventListener('change', function(e) {
+    var list = document.getElementById('file-list');
+    var files = e.target.files;
+    if (files.length === 0) {
+        list.textContent = '';
+        return;
+    }
+    var names = [];
+    for (var i = 0; i < files.length; i++) {
+        names.push(files[i].name);
+    }
+    list.textContent = 'Selected: ' + names.join(', ');
+});
+</script>
+{{end}}
+{{end}}

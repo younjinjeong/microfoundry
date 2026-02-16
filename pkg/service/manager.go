@@ -10,6 +10,7 @@ import (
 	"github.com/younjinjeong/microfoundry/pkg/k8s"
 	"github.com/younjinjeong/microfoundry/pkg/models"
 	"github.com/younjinjeong/microfoundry/pkg/secrets"
+	"github.com/younjinjeong/microfoundry/pkg/terraform"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,15 +33,28 @@ type Manager struct {
 	k8sClient   *k8s.Client
 	secrets     *secrets.Manager
 	provisioner *Provisioner
+	tfExecutor  *terraform.Executor // nil when terraform not installed
 }
 
 // NewManager creates a new service manager.
 func NewManager(client *k8s.Client) *Manager {
-	return &Manager{
+	m := &Manager{
 		k8sClient:   client,
 		secrets:     secrets.NewManager(client),
 		provisioner: NewProvisioner(client),
 	}
+	if tfExec, err := terraform.NewExecutor(client); err == nil {
+		m.tfExecutor = tfExec
+		log.Printf("Terraform executor available")
+	} else {
+		log.Printf("Terraform not available: %v (using K8s-native provisioning only)", err)
+	}
+	return m
+}
+
+// TerraformExecutor returns the terraform executor (may be nil).
+func (m *Manager) TerraformExecutor() *terraform.Executor {
+	return m.tfExecutor
 }
 
 // SecretsManager returns the underlying secrets manager (for VCAP_SERVICES).
@@ -171,7 +185,25 @@ func (m *Manager) Create(ctx context.Context, inst *models.ServiceInstance) erro
 func (m *Manager) provisionAsync(name, serviceTypeID, planID string) {
 	ctx := context.Background()
 
-	outputs, err := m.provisioner.Provision(ctx, name, serviceTypeID, planID)
+	var outputs map[string]string
+	var err error
+	provisionMethod := "k8s-native"
+
+	if m.tfExecutor != nil && m.tfExecutor.HasTopology(ctx, serviceTypeID, planID) {
+		// Terraform provisioning path
+		plan, ok := FindPlan(serviceTypeID, planID)
+		if !ok {
+			_ = m.UpdateStatus(ctx, name, models.ServiceStatusFailed, fmt.Sprintf("plan %q not found for %q", planID, serviceTypeID))
+			return
+		}
+		password := generatePassword(24)
+		outputs, err = m.tfExecutor.Provision(ctx, name, serviceTypeID, planID, password, plan)
+		provisionMethod = "terraform"
+	} else {
+		// K8s-native provisioning path (unchanged)
+		outputs, err = m.provisioner.Provision(ctx, name, serviceTypeID, planID)
+	}
+
 	if err != nil {
 		log.Printf("error provisioning service %q: %v", name, err)
 		_ = m.UpdateStatus(ctx, name, models.ServiceStatusFailed, err.Error())
@@ -184,9 +216,12 @@ func (m *Manager) provisionAsync(name, serviceTypeID, planID string) {
 		return
 	}
 
-	if err := m.UpdateStatus(ctx, name, models.ServiceStatusAvailable, ""); err != nil {
-		log.Printf("error updating status for service %q: %v", name, err)
-	}
+	// Record provision method and mark available
+	_ = m.retryOnConflict(ctx, name, func(inst *models.ServiceInstance) {
+		inst.Status = models.ServiceStatusAvailable
+		inst.StatusMsg = ""
+		inst.ProvisionMethod = provisionMethod
+	})
 }
 
 // WaitForStatus polls until the service reaches the target status or timeout.
@@ -220,10 +255,28 @@ func (m *Manager) SaveOutputs(ctx context.Context, name string, outputs map[stri
 
 // Delete removes a service instance, its K8s workloads, and its secret.
 func (m *Manager) Delete(ctx context.Context, name string) error {
-	// Deprovision K8s workloads (Deployment, Service, PVC)
-	if err := m.provisioner.Deprovision(ctx, name); err != nil {
-		log.Printf("warning: deprovision error for %q: %v", name, err)
+	// Check provision method to decide cleanup path
+	inst, _ := m.Get(ctx, name)
+
+	if inst != nil && inst.ProvisionMethod == "terraform" && m.tfExecutor != nil {
+		// Terraform destroy path
+		if err := m.tfExecutor.Destroy(ctx, name); err != nil {
+			log.Printf("warning: terraform destroy error for %q: %v (falling back to k8s-native)", name, err)
+			// Fall back to K8s-native deprovision
+			if err := m.provisioner.Deprovision(ctx, name); err != nil {
+				log.Printf("warning: deprovision error for %q: %v", name, err)
+			}
+		}
+	} else {
+		// K8s-native deprovision
+		if err := m.provisioner.Deprovision(ctx, name); err != nil {
+			log.Printf("warning: deprovision error for %q: %v", name, err)
+		}
 	}
+
+	// Delete gateway ConfigMap (no-op if not a gateway)
+	gwCmName := GatewayConfigMapName(name)
+	_ = m.k8sClient.Clientset.CoreV1().ConfigMaps(m.k8sClient.Namespace).Delete(ctx, gwCmName, metav1.DeleteOptions{})
 
 	// Delete metadata ConfigMap
 	cmErr := m.k8sClient.Clientset.CoreV1().ConfigMaps(m.k8sClient.Namespace).Delete(ctx, serviceConfigMapPrefix+name, metav1.DeleteOptions{})

@@ -1,0 +1,187 @@
+{{define "topology_detail.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+{{with .Content}}
+<!-- Breadcrumb -->
+<div class="mb-6">
+    <nav class="text-sm text-gray-500">
+        <a href="/topologies" class="hover:text-blue-600">Topologies</a>
+        <span class="mx-2">/</span>
+        <span class="text-gray-900 font-medium">{{.ServiceType}} / {{.PlanID}}</span>
+    </nav>
+</div>
+
+<!-- Plan Info Cards -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="text-xs text-gray-500 uppercase font-medium">Memory</div>
+        <div class="text-lg font-bold text-gray-900 mt-1">{{.Plan.Resources.MemoryMB}}MB</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="text-xs text-gray-500 uppercase font-medium">CPU</div>
+        <div class="text-lg font-bold text-gray-900 mt-1">{{.Plan.Resources.CPUMillis}}m</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="text-xs text-gray-500 uppercase font-medium">Storage</div>
+        <div class="text-lg font-bold text-gray-900 mt-1">{{.Plan.Resources.StorageGB}}GB</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="text-xs text-gray-500 uppercase font-medium">Provisioner</div>
+        <div class="text-lg font-bold mt-1 {{if .HasTopology}}text-purple-700{{else}}text-gray-600{{end}}">
+            {{if .HasTopology}}Terraform v{{.Version}}{{else}}K8s Native{{end}}
+        </div>
+    </div>
+</div>
+
+<!-- Editor Form -->
+<form method="POST" action="/topologies/{{.ServiceType}}/{{.PlanID}}" class="space-y-4">
+    <!-- Description -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <input type="text" id="description" name="description" value="{{.Description}}"
+               placeholder="e.g., HA topology with read replicas for production"
+               class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500">
+    </div>
+
+    <!-- Terraform Files -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-sm font-semibold text-gray-900">Terraform Files</h3>
+            <button type="button" onclick="addFileEditor()"
+                    class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add File
+            </button>
+        </div>
+
+        <div id="file-editors" class="space-y-4">
+            {{if .Files}}
+                {{range $name, $content := .Files}}
+                <div class="file-editor border border-gray-200 rounded-md">
+                    <div class="flex items-center justify-between bg-gray-50 px-3 py-2 border-b border-gray-200">
+                        <input type="text" name="file_name" value="{{$name}}"
+                               class="bg-transparent text-sm font-mono font-medium text-gray-700 border-none focus:ring-0 p-0 w-48"
+                               placeholder="filename.tf">
+                        <button type="button" onclick="this.closest('.file-editor').remove()"
+                                class="text-red-500 hover:text-red-700">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <textarea name="file_content" rows="18"
+                              class="block w-full px-3 py-2 text-sm font-mono border-none focus:ring-0 resize-y"
+                              spellcheck="false">{{$content}}</textarea>
+                </div>
+                {{end}}
+            {{else}}
+                <div class="file-editor border border-gray-200 rounded-md">
+                    <div class="flex items-center justify-between bg-gray-50 px-3 py-2 border-b border-gray-200">
+                        <input type="text" name="file_name" value="main.tf"
+                               class="bg-transparent text-sm font-mono font-medium text-gray-700 border-none focus:ring-0 p-0 w-48"
+                               placeholder="filename.tf">
+                        <button type="button" onclick="this.closest('.file-editor').remove()"
+                                class="text-red-500 hover:text-red-700">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <textarea name="file_content" rows="18"
+                              class="block w-full px-3 py-2 text-sm font-mono border-none focus:ring-0 resize-y"
+                              spellcheck="false" placeholder="# Write your Terraform configuration here...
+#
+# Available variables (injected via terraform.tfvars):
+#   var.instance_name   - Service instance name
+#   var.namespace       - K8s namespace
+#   var.password        - Generated password
+#   var.k8s_name        - K8s resource name (mf-svc-{instance_name})
+#   var.plan_memory_mb  - Plan memory limit (MB)
+#   var.plan_cpu_millis - Plan CPU request (millicores)
+#   var.plan_storage_gb - Plan storage size (GB)
+"></textarea>
+                </div>
+            {{end}}
+        </div>
+    </div>
+
+    <!-- Plan Preview -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-sm font-semibold text-gray-900">Plan Preview</h3>
+            <button type="button" id="preview-btn"
+                    hx-post="/topologies/{{.ServiceType}}/{{.PlanID}}/preview"
+                    hx-target="#preview-output"
+                    hx-swap="innerHTML"
+                    hx-include="closest form"
+                    class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Run Plan Preview
+            </button>
+        </div>
+        <div id="preview-output" class="bg-gray-900 text-green-400 text-xs font-mono p-4 rounded-md min-h-[60px] whitespace-pre-wrap overflow-x-auto">
+            Click "Run Plan Preview" to see what Terraform would create.
+        </div>
+    </div>
+
+    <!-- Variable Reference -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 class="text-sm font-semibold text-blue-900 mb-2">Available Variables</h4>
+        <div class="grid grid-cols-2 gap-2 text-xs text-blue-800 font-mono">
+            <div><span class="font-bold">var.instance_name</span> &mdash; Service instance name</div>
+            <div><span class="font-bold">var.namespace</span> &mdash; K8s namespace</div>
+            <div><span class="font-bold">var.password</span> &mdash; Generated password (24 chars)</div>
+            <div><span class="font-bold">var.k8s_name</span> &mdash; K8s resource name (mf-svc-*)</div>
+            <div><span class="font-bold">var.plan_memory_mb</span> &mdash; Plan memory in MB</div>
+            <div><span class="font-bold">var.plan_cpu_millis</span> &mdash; Plan CPU in millicores</div>
+            <div><span class="font-bold">var.plan_storage_gb</span> &mdash; Plan storage in GB</div>
+        </div>
+        <p class="text-xs text-blue-700 mt-2">Define <code>output</code> blocks in your Terraform to expose credentials. Output values become the service instance's credential map.</p>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex justify-between items-center pt-2">
+        <div>
+            {{if .HasTopology}}
+            <button type="button"
+                    hx-delete="/topologies/{{.ServiceType}}/{{.PlanID}}"
+                    hx-confirm="Remove this topology? Existing terraform-provisioned instances will need terraform state for cleanup."
+                    class="inline-flex items-center px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50 text-sm font-medium">
+                Remove Topology
+            </button>
+            {{end}}
+        </div>
+        <div class="flex space-x-3">
+            <a href="/topologies" class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm font-medium">
+                Cancel
+            </a>
+            <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+                Save Topology
+            </button>
+        </div>
+    </div>
+</form>
+
+<script>
+function addFileEditor() {
+    var container = document.getElementById('file-editors');
+    var div = document.createElement('div');
+    div.className = 'file-editor border border-gray-200 rounded-md';
+    div.innerHTML = '<div class="flex items-center justify-between bg-gray-50 px-3 py-2 border-b border-gray-200">' +
+        '<input type="text" name="file_name" value="" class="bg-transparent text-sm font-mono font-medium text-gray-700 border-none focus:ring-0 p-0 w-48" placeholder="filename.tf">' +
+        '<button type="button" onclick="this.closest(\'.file-editor\').remove()" class="text-red-500 hover:text-red-700">' +
+        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>' +
+        '</button></div>' +
+        '<textarea name="file_content" rows="12" class="block w-full px-3 py-2 text-sm font-mono border-none focus:ring-0 resize-y" spellcheck="false" placeholder="# Terraform configuration..."></textarea>';
+    container.appendChild(div);
+}
+</script>
+{{end}}
+{{end}}

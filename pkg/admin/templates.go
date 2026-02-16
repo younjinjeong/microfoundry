@@ -150,9 +150,12 @@ func NewTemplateRenderer() *TemplateRenderer {
 		"clusters.html",
 		"cluster_detail.html",
 		"service_detail.html",
-		"marketplace.html",
+		"catalog.html",
 		"secret_detail.html",
 		"secret_create.html",
+		"topologies.html",
+		"topology_detail.html",
+		"topology_upload.html",
 	}
 
 	pages := make(map[string]*template.Template, len(pageFiles)+3)

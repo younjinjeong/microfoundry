@@ -16,8 +16,9 @@ Complete guide to the MicroFoundry web-based admin dashboard.
 8. [Cluster Management](#cluster-management)
 9. [Service Catalog](#service-catalog)
 10. [Platform Settings](#platform-settings)
-11. [Users & Organizations](#users--organizations)
-12. [API Reference](#api-reference)
+11. [Users & IAM](#users--iam)
+12. [SCIM v2 API](#scim-v2-api)
+13. [API Reference](#api-reference)
 
 ---
 
@@ -390,18 +391,20 @@ Configure SMTP for email notifications:
 
 ---
 
-## Users & Organizations
-
-### Organization Management
+## Users & IAM
 
 **URL**: `/users`
 
-When authentication is enabled:
+The Users & IAM page provides complete identity and access management through a 4-tab interface. Tabs load dynamically via HTMX (`hx-get="/users/tab/{tab}"`, `hx-target="#tab-content"`, `hx-push-url="/users?tab={tab}"`).
 
-- Create organizations
-- Invite members by email
-- Set member roles (admin, member, viewer)
-- Switch active organization
+### Orgs Tab
+
+**URL**: `/users?tab=orgs`
+
+Organization management with a two-column layout:
+
+- **Left panel** — list of user's organizations, create org form
+- **Right panel** — selected org detail, members table, invite form
 
 | Action | Method | URL |
 |--------|--------|-----|
@@ -411,6 +414,151 @@ When authentication is enabled:
 | Remove member | DELETE | `/users/orgs/{id}/members/{email}` |
 | Set role | POST | `/users/orgs/{id}/members/{email}/role` |
 | Switch active | POST | `/users/orgs/{id}/activate` |
+
+Roles: **admin** (full org access), **member** (apps/services/secrets), **viewer** (read-only).
+
+### Users Tab
+
+**URL**: `/users?tab=users`
+
+Keycloak user management (requires Keycloak admin credentials in config):
+
+- User table: Username, Email, Name, Roles (as badges), Enabled/Disabled status
+- Search bar with real-time filtering by username or email
+- Create user form: username, email, first/last name, password
+- Per-user actions: toggle enable/disable, assign realm roles, delete
+
+| Action | Method | URL |
+|--------|--------|-----|
+| Create user | POST | `/users/keycloak` |
+| Toggle enable/disable | POST | `/users/keycloak/{id}/toggle` |
+| Assign role | POST | `/users/keycloak/{id}/roles` |
+| Delete user | DELETE | `/users/keycloak/{id}` |
+
+Realm roles: **platform-admin** (full platform access), **org-admin**, **org-member**, **viewer**.
+
+### Policies Tab
+
+**URL**: `/users?tab=policies`
+
+View and manage OPA authorization policies:
+
+- Read-only display of the embedded default policy (`authz.rego`)
+- Custom policy editor with name and Rego source fields
+- Save button validates Rego syntax before applying (copy-on-write — invalid Rego never corrupts live policies)
+- Error messages displayed for syntax errors
+
+| Action | Method | URL |
+|--------|--------|-----|
+| Save policy | POST | `/users/policies` |
+
+### Audit Tab
+
+**URL**: `/users?tab=audit`
+
+Authorization decision log (in-memory ring buffer, last 1000 entries):
+
+- Table columns: Timestamp, User Email, Action, Resource, Path, Method, Allowed/Denied
+- Filter dropdowns: by user, by resource, by action
+- Allow (green) / Deny (red) status badges
+- Entry count indicator showing total logged decisions
+
+---
+
+## SCIM v2 API
+
+MicroFoundry implements SCIM v2 (RFC 7643/7644) endpoints for standard identity provisioning. All SCIM endpoints require the `platform-admin` role and use `Content-Type: application/scim+json`.
+
+### Endpoints
+
+| Method | Endpoint | Description | Status Codes |
+|--------|----------|-------------|-------------|
+| GET | `/scim/v2/Users` | List users with pagination & filtering | 200, 400, 503 |
+| POST | `/scim/v2/Users` | Create user | 201, 400, 409, 503 |
+| GET | `/scim/v2/Users/{id}` | Get user by ID | 200, 400, 404, 503 |
+| PUT | `/scim/v2/Users/{id}` | Replace user (full update) | 200, 400, 404, 503 |
+| PATCH | `/scim/v2/Users/{id}` | Partial update (PatchOp) | 200, 400, 404, 503 |
+| DELETE | `/scim/v2/Users/{id}` | Delete user | 204, 400, 503 |
+| GET | `/scim/v2/ServiceProviderConfig` | Provider capabilities | 200 |
+| GET | `/scim/v2/ResourceTypes` | Supported resource types | 200 |
+| GET | `/scim/v2/Schemas` | Schema definitions | 200 |
+
+### Query Parameters (List Users)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `startIndex` | 1 | SCIM 1-based pagination start |
+| `count` | 20 | Results per page (max: 100) |
+| `filter` | — | SCIM filter expression |
+
+Supported filter operators: `eq`, `co`, `sw`. Supported attributes: `userName`, `emails.value`. Compound filters (`and`/`or`) are not supported.
+
+Example: `GET /scim/v2/Users?filter=userName eq "admin"&count=10`
+
+### Request/Response Examples
+
+**List Users:**
+
+```bash
+curl -H "Authorization: Bearer TOKEN" \
+  "http://localhost:8080/scim/v2/Users?startIndex=1&count=20"
+```
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+  "totalResults": 3,
+  "itemsPerPage": 20,
+  "startIndex": 1,
+  "Resources": [
+    {
+      "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "userName": "admin",
+      "name": { "givenName": "Admin", "familyName": "User" },
+      "emails": [{ "value": "admin@example.com", "type": "work", "primary": true }],
+      "active": true,
+      "meta": {
+        "resourceType": "User",
+        "created": "2025-01-15T10:00:00Z",
+        "location": "http://localhost:8080/scim/v2/Users/550e8400-e29b-41d4-a716-446655440000"
+      }
+    }
+  ]
+}
+```
+
+**Create User:**
+
+```bash
+curl -X POST -H "Content-Type: application/scim+json" \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"schemas":["urn:ietf:params:scim:schemas:core:2.0:User"],"userName":"newuser","name":{"givenName":"New","familyName":"User"},"emails":[{"value":"new@example.com","primary":true}],"active":true}' \
+  "http://localhost:8080/scim/v2/Users"
+```
+
+Returns `201 Created` with `Location` header pointing to the new user resource.
+
+**Patch User (disable):**
+
+```bash
+curl -X PATCH -H "Content-Type: application/scim+json" \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"schemas":["urn:ietf:params:scim:api:messages:2.0:PatchOp"],"Operations":[{"op":"replace","path":"active","value":false}]}' \
+  "http://localhost:8080/scim/v2/Users/550e8400-e29b-41d4-a716-446655440000"
+```
+
+### Validation
+
+All `{id}` path parameters are validated as UUIDs. Non-UUID values return a `400` SCIM error:
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+  "detail": "invalid user ID format",
+  "status": "400"
+}
+```
 
 ---
 
@@ -488,6 +636,15 @@ All API endpoints return JSON and are available at `/api/...`.
 | GET | `/api/orgs/{id}` | Get organization detail |
 | POST | `/api/orgs` | Create organization |
 | GET | `/api/orgs/{id}/members` | List members |
+
+### IAM APIs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/users` | List Keycloak users (with `?search=` filter) |
+| GET | `/api/policies` | Get all OPA policies (name → Rego source) |
+| PUT | `/api/policies` | Update an OPA policy (JSON: `name`, `source`) |
+| GET | `/api/audit` | Query audit log (`?user=`, `?resource=`, `?action=`) |
 
 ### Config API
 

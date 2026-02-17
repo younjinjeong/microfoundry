@@ -415,15 +415,95 @@ Organizations are stored as K8s ConfigMaps (`mf-org-*`) with:
 - Member list with roles (admin, member, viewer)
 - Created/updated timestamps
 
-### Middleware
+### Middleware Chain
 
-The `auth.InjectUser` middleware runs on every request:
+The auth middleware chain wraps every request in this order (outermost → innermost):
+
+```
+Request
+  → InstrumentHandler (Prometheus metrics — outermost)
+    → InjectUser (session cookie → user context)
+      → OPAMiddleware (policy evaluation → allow/deny)
+        → Handler (business logic)
+```
+
+**InjectUser** runs OUTSIDE OPA so it executes first, populating the user context that OPA needs for policy evaluation.
+
 1. Reads session cookie
 2. Extracts `UserSession` from session store
-3. Injects user into request context
-4. Handlers access user via `auth.UserFromContext(r.Context())`
+3. Injects user into request context via `auth.UserFromContext(r.Context())`
+4. If no valid session, user is `nil` (unauthenticated)
 
-When auth is disabled, all features work without authentication.
+### OPA Authorization Engine
+
+MicroFoundry embeds an [Open Policy Agent](https://www.openpolicyagent.org/) engine for fine-grained authorization using Rego policies.
+
+```
+OPAMiddleware(request)
+  → Skip if public path (/static/, /login, /auth/*, /health, /metrics)
+  → buildAuthzInput: classify route (method+path → action+resource)
+  → Resolve org membership role (orgStore.ListMembers)
+  → opa.Evaluate(input) → {allow: bool, reason: string}
+  → Record audit entry (timestamp, user, action, resource, allowed)
+  → If denied: redirect to /login (unauthenticated) or 403 (insufficient role)
+```
+
+**Route classification** maps HTTP method + path to action + resource:
+- `GET /apps` → action=`read`, resource=`apps`
+- `POST /services/create` → action=`write`, resource=`services`
+- `DELETE /secrets/mykey` → action=`delete`, resource=`secrets`
+- `GET /scim/v2/Users` → action=`read`, resource=`scim`
+
+**Default policy** (`pkg/auth/policies/authz.rego`):
+- Platform admins → full access
+- Authenticated users → read any resource
+- Org admins → write/delete within their org
+- Org members → write apps, services, secrets only
+- SCIM, settings, clusters → platform-admin only
+- Unauthenticated (null user) → public resources only (not SCIM/settings/clusters/users)
+
+**Policy hot-reload**: The `UpdatePolicy` endpoint uses copy-on-write — compiles new modules in a temporary copy first, only swaps on success. Invalid Rego never corrupts the live policy set.
+
+### SCIM v2 Integration
+
+MicroFoundry exposes SCIM v2 (RFC 7643/7644) endpoints that proxy to the Keycloak Admin REST API:
+
+```
+SCIM Client → /scim/v2/Users → SCIMHandler
+                                    │
+                              Convert SCIM ↔ Keycloak
+                                    │
+                              Keycloak Admin REST API
+                              (client_credentials grant)
+                                    │
+                              /admin/realms/{realm}/users
+```
+
+**Keycloak Admin Client** (`pkg/auth/keycloak_admin.go`):
+- Uses `client_credentials` grant (not password grant)
+- Token caching with automatic refresh before expiry
+- User CRUD: List, Get, Create, Update, Delete
+- Role management: GetUserRoles, AssignUserRole, RemoveUserRole, GetRealmRoles
+- Password reset: ResetPassword (temporary or permanent)
+
+### Audit Subsystem
+
+An in-memory ring buffer records every OPA authorization decision:
+
+```go
+type AuditLog struct {
+    entries []AuditEntry  // Fixed-size circular buffer
+    size    int           // Max entries (default: 1000)
+    head    int           // Write position
+    count   int           // Current entry count
+}
+```
+
+Each entry records: timestamp, user email/ID, action, resource, path, method, org ID, allowed/denied, reason, IP address.
+
+At ~100 requests/minute, the default 1000-entry buffer provides ~10 minutes of history. The buffer is queryable by user, resource, and action via the admin UI (Audit tab) and API (`GET /api/audit`).
+
+When auth is disabled, all features work without authentication — OPA middleware is skipped entirely.
 
 ---
 

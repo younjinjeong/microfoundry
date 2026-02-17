@@ -158,6 +158,31 @@ The following alerts provide observability-of-observability:
 - **MFAppHighLatency**: p99 latency >2s per app (warning)
 - **MFAppNoTraffic**: Running app with zero HTTP traffic for 15m (info)
 
+## Authorization Audit Buffer
+
+The OPA authorization middleware records every allow/deny decision in an in-memory ring buffer (`pkg/auth/audit.go`). This is separate from the Prometheus/Loki observability stack — it provides an IAM-specific audit trail visible in the admin UI.
+
+### Capacity
+
+| Setting | Default | Notes |
+|---------|---------|-------|
+| Buffer size | 1000 entries | Circular — oldest entries evicted on overflow |
+| Entry size | ~300 bytes | Timestamp, user, action, resource, path, method, org, IP, reason |
+| Memory footprint | ~300 KB | Fixed allocation, does not grow |
+
+At 100 requests/minute, the buffer holds ~10 minutes of history. For production deployments requiring persistent audit trails, export entries to an external log sink (Loki, SIEM) via the `GET /api/audit` endpoint.
+
+### Query Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `user` | Filter by user email |
+| `resource` | Filter by resource type (apps, services, scim, etc.) |
+| `action` | Filter by action (read, write, delete) |
+| `limit` | Max entries to return (default: 100) |
+
+---
+
 ## Recording Rule Staleness
 
 When an app is deleted, its recording rule series become stale after the Prometheus

@@ -12,7 +12,7 @@ A complete guide to deploying and managing applications on MicroFoundry — a mi
 4. [Backing Services](#backing-services)
 5. [Secret Management](#secret-management)
 6. [Monitoring & Observability](#monitoring--observability)
-7. [Authentication & Organizations](#authentication--organizations)
+7. [Authentication & IAM](#authentication--iam)
 8. [Multi-Cluster Management](#multi-cluster-management)
 9. [Container Registry](#container-registry)
 10. [CLI Reference](#cli-reference)
@@ -142,7 +142,7 @@ monitoring:
 #   from_addr: "noreply@microfoundry.local"
 #   tls: true
 
-# Authentication (optional — Keycloak OIDC)
+# Authentication (optional — Keycloak OIDC + OPA + SCIM)
 # auth:
 #   enabled: true
 #   issuer_url: "http://localhost:8180/realms/microfoundry"
@@ -150,6 +150,10 @@ monitoring:
 #   client_secret: "your-secret"
 #   redirect_url: "http://localhost:8080/auth/callback"
 #   session_key: ""  # Auto-generated if empty
+#   admin_base_url: "http://localhost:8180"   # Keycloak Admin API
+#   admin_client_id: "admin-cli"              # Client for Admin REST API
+#   admin_client_secret: "your-admin-secret"  # Client credentials grant
+#   realm: "microfoundry"                     # Keycloak realm name
 ```
 
 ---
@@ -433,9 +437,9 @@ kubectl port-forward -n monitoring svc/kube-prometheus-kube-prome-alertmanager 9
 
 ---
 
-## Authentication & Organizations
+## Authentication & IAM
 
-MicroFoundry supports OIDC authentication via **Keycloak** with social login (Google, GitHub, Amazon).
+MicroFoundry provides a full IAM stack: OIDC authentication via **Keycloak**, fine-grained authorization via **OPA (Open Policy Agent)**, standard identity provisioning via **SCIM v2**, and an authorization **audit log**.
 
 ### Deploy Keycloak
 
@@ -466,15 +470,20 @@ auth:
   client_id: "mf-admin"
   client_secret: "<from mf setup keycloak-realm>"
   redirect_url: "http://localhost:8080/auth/callback"
+  # Keycloak Admin API (for user management & SCIM)
+  admin_base_url: "http://localhost:8180"
+  admin_client_id: "admin-cli"
+  admin_client_secret: "<from Keycloak admin-cli>"
+  realm: "microfoundry"
 ```
 
 ### Roles
 
 Keycloak is configured with these roles:
-- **platform-admin** — full platform access
-- **org-admin** — organization administrator
-- **org-member** — organization member
-- **viewer** — read-only access
+- **platform-admin** — full platform access (SCIM, settings, clusters, audit)
+- **org-admin** — organization administrator (write/delete within org)
+- **org-member** — organization member (write apps, services, secrets)
+- **viewer** — read-only access to all resources
 
 ### Organizations
 
@@ -484,6 +493,55 @@ When auth is enabled, users can create and manage organizations:
 - Invite members by email
 - Assign roles: admin, member, viewer
 - Switch active organization
+
+### OPA Authorization
+
+All API and UI routes are evaluated by the embedded **Open Policy Agent** using Rego policies. The middleware chain runs in order:
+
+```
+InstrumentHandler → InjectUser → OPAMiddleware → Handler
+```
+
+**Default authorization rules** (embedded in `pkg/auth/policies/authz.rego`):
+
+| Rule | Condition |
+|------|-----------|
+| Public resources | Auth disabled (user is null), excludes SCIM/settings/clusters/users |
+| Platform admin | Full access to all resources |
+| Authenticated read | Any authenticated user can read any resource |
+| Org admin write | Org admins can write within their organization |
+| Org member write | Members can write apps, services, and secrets only |
+| SCIM access | Requires platform-admin role |
+| Delete | Requires org admin role (apps, services, secrets) |
+
+**Custom policies**: Platform admins can add or replace Rego policies at runtime via the **Policies tab** in Users & IAM. Changes are compiled and swapped atomically.
+
+### SCIM v2 Provisioning
+
+MicroFoundry exposes 9 SCIM v2 endpoints (RFC 7643/7644) for standard identity provisioning. All SCIM endpoints require `platform-admin` role.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/scim/v2/Users` | GET | List users (pagination, filter) |
+| `/scim/v2/Users` | POST | Create user |
+| `/scim/v2/Users/{id}` | GET | Get user by ID |
+| `/scim/v2/Users/{id}` | PUT | Replace user |
+| `/scim/v2/Users/{id}` | PATCH | Partial update (PatchOp) |
+| `/scim/v2/Users/{id}` | DELETE | Delete user |
+| `/scim/v2/ServiceProviderConfig` | GET | Discovery |
+| `/scim/v2/ResourceTypes` | GET | Resource types |
+| `/scim/v2/Schemas` | GET | Schema discovery |
+
+SCIM requests use `Content-Type: application/scim+json`. Path IDs are validated as UUIDs. The `count` parameter is capped at 100.
+
+### Audit Log
+
+Every authorization decision is recorded in an in-memory ring buffer (1000 entries). Each entry captures:
+
+- Timestamp, user, action, resource, HTTP path/method
+- Organization ID, allow/deny decision, denial reason, client IP
+
+View the audit log from the **Audit tab** in Users & IAM, or query via `GET /api/audit`.
 
 ---
 
@@ -650,6 +708,6 @@ MicroFoundry maps CloudFoundry concepts to Kubernetes primitives:
 | Loggregator | Promtail + Loki |
 | Doppler/Metrics | Prometheus + Grafana + Beyla eBPF |
 | NATS (Alerts) | AlertManager |
-| UAA | Keycloak OIDC |
+| UAA | Keycloak OIDC + OPA + SCIM v2 |
 | VCAP_SERVICES | Same format — injected via K8s Secrets |
 | manifest.yml | Supported — same format |

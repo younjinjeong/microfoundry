@@ -966,7 +966,7 @@ How CloudFoundry components map to MicroFoundry's Kubernetes-based architecture:
 | **TCP Router** | Custom TCP proxy | **K8s Service (LoadBalancer/NodePort)** |
 | **NATS** | Message bus | **K8s Events / Controller watches** |
 | **Cloud Controller** | Ruby/Go API | **MicroFoundry API Server** (Go) |
-| **UAA** | Java OAuth2 server | **Dex / Keycloak / K8s RBAC** |
+| **UAA** | Java OAuth2 server | **Keycloak OIDC + OPA (Rego) + SCIM v2** |
 | **MySQL** | PXC Galera | **AWS RDS / Cloud SQL / CockroachDB** |
 | **Blobstore** | WebDAV | **S3 / GCS / MinIO** |
 | **Buildpacks** | CF Buildpacks | **Cloud Native Buildpacks (CNB) / Paketo** |

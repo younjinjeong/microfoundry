@@ -3,17 +3,28 @@ package admin
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/younjinjeong/microfoundry/pkg/auth"
 )
 
+// uuidRegex validates UUID format for SCIM path parameters.
+var uuidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+func isValidUUID(s string) bool {
+	return uuidRegex.MatchString(s)
+}
+
 // writeSCIMJSON writes a SCIM JSON response with the correct content type.
 func writeSCIMJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/scim+json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("[SCIM] failed to encode JSON response: %v", err)
+	}
 }
 
 // writeSCIMError sends a SCIM error response.
@@ -46,6 +57,9 @@ func (s *Server) SCIMListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	count, _ := strconv.Atoi(r.URL.Query().Get("count"))
 	if count <= 0 {
 		count = 20
+	}
+	if count > 100 {
+		count = 100
 	}
 
 	filter := r.URL.Query().Get("filter")
@@ -128,6 +142,10 @@ func (s *Server) SCIMGetUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := r.PathValue("id")
+	if !isValidUUID(userID) {
+		writeSCIMError(w, http.StatusBadRequest, "invalid user ID format")
+		return
+	}
 	user, err := s.keycloakAdmin.GetUser(r.Context(), userID)
 	if err != nil {
 		writeSCIMError(w, http.StatusNotFound, err.Error())
@@ -146,6 +164,10 @@ func (s *Server) SCIMUpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := r.PathValue("id")
+	if !isValidUUID(userID) {
+		writeSCIMError(w, http.StatusBadRequest, "invalid user ID format")
+		return
+	}
 
 	var scimUser auth.SCIMUser
 	if err := json.NewDecoder(r.Body).Decode(&scimUser); err != nil {
@@ -179,6 +201,10 @@ func (s *Server) SCIMPatchUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := r.PathValue("id")
+	if !isValidUUID(userID) {
+		writeSCIMError(w, http.StatusBadRequest, "invalid user ID format")
+		return
+	}
 
 	var patch auth.SCIMPatchOp
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
@@ -233,6 +259,10 @@ func (s *Server) SCIMDeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := r.PathValue("id")
+	if !isValidUUID(userID) {
+		writeSCIMError(w, http.StatusBadRequest, "invalid user ID format")
+		return
+	}
 	if err := s.keycloakAdmin.DeleteUser(r.Context(), userID); err != nil {
 		writeSCIMError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -255,7 +285,7 @@ func (s *Server) SCIMServiceProviderConfigHandler(w http.ResponseWriter, r *http
 		},
 		"filter": map[string]any{
 			"supported":  true,
-			"maxResults": 200,
+			"maxResults": 100,
 		},
 		"changePassword": map[string]any{
 			"supported": true,

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -100,7 +101,10 @@ func buildAuthzInput(r *http.Request, orgStore *OrgStore) AuthzInput {
 	if user != nil {
 		orgRole := ""
 		if orgStore != nil && input.OrgID != "" {
-			members, _ := orgStore.ListMembers(r.Context(), input.OrgID)
+			members, err := orgStore.ListMembers(r.Context(), input.OrgID)
+			if err != nil {
+				log.Printf("[OPA] failed to list org members for org %s: %v", input.OrgID, err)
+			}
 			for _, m := range members {
 				if m.Email == user.Email {
 					orgRole = m.Role

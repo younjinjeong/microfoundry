@@ -4,9 +4,11 @@ import rego.v1
 
 default allow := false
 
-# When auth is disabled, user is null — allow everything
+# When auth is disabled, user is null — allow public resources only
+# SCIM, settings, clusters, and user management still require authentication
 allow if {
 	input.user == null
+	not input.resource in {"scim", "settings", "clusters", "users"}
 }
 
 # Platform admins have full access to all resources

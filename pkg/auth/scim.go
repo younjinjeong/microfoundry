@@ -144,10 +144,17 @@ func SCIMUserToKeycloak(scim *SCIMUser) *KeycloakUser {
 }
 
 // ParseSCIMFilter parses a basic SCIM filter expression.
-// Supports: attrName op "value" (e.g., userName eq "john").
+// Supports: attrName op "value" (e.g., userName eq "john doe").
+// Compound filters (and/or) are not supported and will return an error.
 func ParseSCIMFilter(filter string) (attr, op, value string, err error) {
 	if filter == "" {
 		return "", "", "", nil
+	}
+
+	// Reject compound filters — we only support simple expressions
+	lowerFilter := strings.ToLower(filter)
+	if strings.Contains(lowerFilter, " and ") || strings.Contains(lowerFilter, " or ") {
+		return "", "", "", fmt.Errorf("compound filters (and/or) are not supported")
 	}
 
 	parts := strings.SplitN(filter, " ", 3)
@@ -157,7 +164,14 @@ func ParseSCIMFilter(filter string) (attr, op, value string, err error) {
 
 	attr = parts[0]
 	op = strings.ToLower(parts[1])
-	value = strings.Trim(parts[2], "\"")
+
+	// Handle quoted values (may contain spaces)
+	raw := parts[2]
+	if strings.HasPrefix(raw, "\"") && strings.HasSuffix(raw, "\"") && len(raw) >= 2 {
+		value = raw[1 : len(raw)-1]
+	} else {
+		value = strings.Trim(raw, "\"")
+	}
 
 	switch op {
 	case "eq", "co", "sw":

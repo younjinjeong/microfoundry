@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/younjinjeong/microfoundry/pkg/auth"
@@ -36,7 +37,15 @@ func (s *Server) OrgsPageHandler(w http.ResponseWriter, r *http.Request) {
 	case "orgs":
 		ctx := r.Context()
 		store := s.orgStore()
-		orgs, _ := store.GetUserOrgs(ctx, user.Email)
+		if store == nil {
+			content["Error"] = "Organization store not available"
+			break
+		}
+		orgs, err := store.GetUserOrgs(ctx, user.Email)
+		if err != nil {
+			log.Printf("[Orgs] failed to get user orgs for %s: %v", user.Email, err)
+			content["Error"] = "Failed to load organizations"
+		}
 
 		selectedOrg := r.URL.Query().Get("org")
 		if selectedOrg == "" && len(orgs) > 0 {
@@ -51,7 +60,10 @@ func (s *Server) OrgsPageHandler(w http.ResponseWriter, r *http.Request) {
 			orgDetail, err := store.Get(ctx, selectedOrg)
 			if err == nil {
 				content["OrgDetail"] = orgDetail
-				members, _ := store.ListMembers(ctx, selectedOrg)
+				members, err := store.ListMembers(ctx, selectedOrg)
+				if err != nil {
+					log.Printf("[Orgs] failed to list members for org %s: %v", selectedOrg, err)
+				}
 				content["Members"] = members
 
 				userRole := "viewer"
@@ -73,7 +85,11 @@ func (s *Server) OrgsPageHandler(w http.ResponseWriter, r *http.Request) {
 				content["Error"] = err.Error()
 			} else {
 				for i := range users {
-					roles, _ := s.keycloakAdmin.GetUserRoles(r.Context(), users[i].ID)
+					roles, err := s.keycloakAdmin.GetUserRoles(r.Context(), users[i].ID)
+					if err != nil {
+						log.Printf("[Orgs] failed to get roles for user %s: %v", users[i].ID, err)
+						continue
+					}
 					roleNames := make([]string, 0, len(roles))
 					for _, role := range roles {
 						roleNames = append(roleNames, role.Name)
@@ -84,7 +100,10 @@ func (s *Server) OrgsPageHandler(w http.ResponseWriter, r *http.Request) {
 				content["TotalUsers"] = total
 				content["Search"] = search
 			}
-			realmRoles, _ := s.keycloakAdmin.GetRealmRoles(r.Context())
+			realmRoles, err := s.keycloakAdmin.GetRealmRoles(r.Context())
+			if err != nil {
+				log.Printf("[Orgs] failed to get realm roles: %v", err)
+			}
 			content["RealmRoles"] = realmRoles
 		} else {
 			content["NotConfigured"] = true
@@ -292,7 +311,10 @@ func (s *Server) APIGetOrgHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	members, _ := store.ListMembers(r.Context(), orgID)
+	members, err := store.ListMembers(r.Context(), orgID)
+	if err != nil {
+		log.Printf("[Orgs] failed to list members for org %s: %v", orgID, err)
+	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"org":     org,

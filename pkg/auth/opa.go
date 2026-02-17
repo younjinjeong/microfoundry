@@ -129,12 +129,29 @@ func (e *OPAEngine) Evaluate(ctx context.Context, input AuthzInput) (AuthzResult
 }
 
 // UpdatePolicy adds or replaces a custom policy module and recompiles.
+// Uses copy-on-write to avoid corrupting modules map if compilation fails.
 func (e *OPAEngine) UpdatePolicy(name, regoText string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	e.modules[name] = regoText
-	return e.compile()
+	// Copy modules to avoid mutation before successful compile
+	updated := make(map[string]string, len(e.modules)+1)
+	for k, v := range e.modules {
+		updated[k] = v
+	}
+	updated[name] = regoText
+
+	compiler, err := ast.CompileModulesWithOpt(updated, ast.CompileOpts{
+		EnablePrintStatements: false,
+	})
+	if err != nil {
+		return fmt.Errorf("compiling rego policies: %w", err)
+	}
+
+	// Swap atomically only after successful compile
+	e.modules = updated
+	e.compiler = compiler
+	return nil
 }
 
 // GetPolicies returns the currently loaded policy names and their source.

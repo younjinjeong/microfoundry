@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/younjinjeong/microfoundry/pkg/auth"
@@ -44,7 +45,16 @@ func (s *Server) renderIAMOrgsTab(w http.ResponseWriter, r *http.Request) {
 
 	if user != nil {
 		store := s.orgStore()
-		orgs, _ := store.GetUserOrgs(r.Context(), user.Email)
+		if store == nil {
+			data["Error"] = "Organization store not available"
+			s.templates.RenderPartial(w, "tab_iam_orgs.html", data)
+			return
+		}
+		orgs, err := store.GetUserOrgs(r.Context(), user.Email)
+		if err != nil {
+			log.Printf("[IAM] failed to get user orgs for %s: %v", user.Email, err)
+			data["Error"] = "Failed to load organizations"
+		}
 
 		selectedOrg := r.URL.Query().Get("org")
 		if selectedOrg == "" && len(orgs) > 0 {
@@ -60,7 +70,10 @@ func (s *Server) renderIAMOrgsTab(w http.ResponseWriter, r *http.Request) {
 			orgDetail, err := store.Get(r.Context(), selectedOrg)
 			if err == nil {
 				data["OrgDetail"] = orgDetail
-				members, _ := store.ListMembers(r.Context(), selectedOrg)
+				members, err := store.ListMembers(r.Context(), selectedOrg)
+				if err != nil {
+					log.Printf("[IAM] failed to list members for org %s: %v", selectedOrg, err)
+				}
 				data["Members"] = members
 
 				userRole := "viewer"
@@ -90,7 +103,11 @@ func (s *Server) renderIAMUsersTab(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// Fetch roles for each user
 			for i := range users {
-				roles, _ := s.keycloakAdmin.GetUserRoles(r.Context(), users[i].ID)
+				roles, err := s.keycloakAdmin.GetUserRoles(r.Context(), users[i].ID)
+				if err != nil {
+					log.Printf("[IAM] failed to get roles for user %s: %v", users[i].ID, err)
+					continue
+				}
 				roleNames := make([]string, 0, len(roles))
 				for _, role := range roles {
 					roleNames = append(roleNames, role.Name)
@@ -103,7 +120,10 @@ func (s *Server) renderIAMUsersTab(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Get available realm roles for assignment
-		realmRoles, _ := s.keycloakAdmin.GetRealmRoles(r.Context())
+		realmRoles, err := s.keycloakAdmin.GetRealmRoles(r.Context())
+		if err != nil {
+			log.Printf("[IAM] failed to get realm roles: %v", err)
+		}
 		data["RealmRoles"] = realmRoles
 	} else {
 		data["NotConfigured"] = true
@@ -181,7 +201,11 @@ func (s *Server) CreateKeycloakUserHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	if password != "" {
-		_ = s.keycloakAdmin.ResetPassword(r.Context(), userID, password, false)
+		if err := s.keycloakAdmin.ResetPassword(r.Context(), userID, password, false); err != nil {
+			log.Printf("[IAM] user %s created but password reset failed: %v", userID, err)
+			http.Error(w, "User created but password set failed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.Header().Set("HX-Redirect", "/users?tab=users")

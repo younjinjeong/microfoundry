@@ -76,6 +76,7 @@ type ClusterConfig struct {
 	Provider  string `mapstructure:"provider"  json:"provider"`
 	Region    string `mapstructure:"region"    json:"region,omitempty"`
 	Enabled   bool   `mapstructure:"enabled"   json:"enabled"`
+	TLS       bool   `mapstructure:"tls"       json:"tls"`
 }
 
 type KubernetesConfig struct {

@@ -12,6 +12,7 @@ kubernetes:
       domain: "cf-local.dev"
       provider: "docker-desktop"
       enabled: true
+      tls: false  # Set to true after running `mf setup tls`
     # Example: Add an EKS cluster
     # my-eks-cluster:
     #   name: "Production EKS"
@@ -31,7 +32,7 @@ admin:
   host: "0.0.0.0"
 
 monitoring:
-  grafana_url: "http://localhost:3000"
+  grafana_url: "http://localhost:3000"  # Use https://grafana.cf-local.dev after `mf setup tls`
   loki_url: "http://loki.monitoring.svc.cluster.local:3100"
   alertmanager_url: "http://kube-prometheus-kube-prome-alertmanager.monitoring.svc.cluster.local:9093"
   prometheus_url: "http://kube-prometheus-kube-prome-prometheus.monitoring.svc.cluster.local:9090"

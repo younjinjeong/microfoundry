@@ -54,6 +54,7 @@ func (c *Client) DeployKeycloak(ctx context.Context, adminUser, adminPass string
 							{Name: "KEYCLOAK_ADMIN_PASSWORD", Value: adminPass},
 							{Name: "KC_PROXY_HEADERS", Value: "xforwarded"},
 							{Name: "KC_HTTP_PORT", Value: "8180"},
+							{Name: "KC_HOSTNAME_STRICT", Value: "false"},
 						},
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{

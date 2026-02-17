@@ -188,11 +188,15 @@ func pushCmd() *cobra.Command {
 
 			// Display result
 			status, _ := k8sClient.GetAppStatus(ctx, app.Name)
+			scheme := "http"
+			if k8sClient.HasTLSSecret(ctx) {
+				scheme = "https"
+			}
 			fmt.Println()
 			fmt.Printf("name:       %s\n", app.Name)
 			fmt.Printf("state:      STARTED\n")
 			if len(routes) > 0 {
-				fmt.Printf("routes:     %s\n", routes[0].URL())
+				fmt.Printf("routes:     %s://%s\n", scheme, routes[0].URL())
 			}
 			if status != nil {
 				fmt.Printf("instances:  %d/%d\n", status.RunningCount, status.TotalCount)

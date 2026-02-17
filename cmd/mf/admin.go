@@ -16,6 +16,8 @@ import (
 func adminCmd() *cobra.Command {
 	var port int
 	var host string
+	var tlsCert string
+	var tlsKey string
 
 	cmd := &cobra.Command{
 		Use:   "admin",
@@ -89,6 +91,11 @@ func adminCmd() *cobra.Command {
 				opts = append(opts, admin.WithAuditLog(auditLog))
 			}
 
+			// TLS support
+			if tlsCert != "" && tlsKey != "" {
+				opts = append(opts, admin.WithTLS(tlsCert, tlsKey))
+			}
+
 			srv := admin.NewServer(clientManager, cfg, version, opts...)
 
 			// Start background metrics collector
@@ -97,7 +104,11 @@ func adminCmd() *cobra.Command {
 			go monitoring.StartCollector(ctx, srv.GetMetrics(), clientManager, 30*time.Second)
 
 			addr := fmt.Sprintf("%s:%d", host, port)
-			fmt.Printf("MicroFoundry Admin starting at http://localhost:%d\n", port)
+			scheme := "http"
+			if tlsCert != "" && tlsKey != "" {
+				scheme = "https"
+			}
+			fmt.Printf("MicroFoundry Admin starting at %s://localhost:%d\n", scheme, port)
 			fmt.Printf("Active cluster: %s\n", cfg.Kubernetes.Active)
 			return srv.ListenAndServe(addr)
 		},
@@ -105,6 +116,8 @@ func adminCmd() *cobra.Command {
 
 	cmd.Flags().IntVarP(&port, "port", "p", 8080, "Port to listen on")
 	cmd.Flags().StringVar(&host, "host", "127.0.0.1", "Host to bind to")
+	cmd.Flags().StringVar(&tlsCert, "tls-cert", "", "Path to TLS certificate file (enables HTTPS)")
+	cmd.Flags().StringVar(&tlsKey, "tls-key", "", "Path to TLS private key file (enables HTTPS)")
 
 	return cmd
 }

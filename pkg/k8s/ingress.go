@@ -10,7 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const tlsSecretName = "mf-tls-wildcard"
+
 // CreateIngress creates or updates an Ingress resource for the given routes.
+// If the mf-tls-wildcard secret exists in the namespace, TLS termination is configured automatically.
 func (c *Client) CreateIngress(ctx context.Context, appName string, routes []models.Route) error {
 	if len(routes) == 0 {
 		return nil
@@ -19,14 +22,17 @@ func (c *Client) CreateIngress(ctx context.Context, appName string, routes []mod
 	pathType := networkingv1.PathTypePrefix
 	ingressClassName := "nginx"
 	var rules []networkingv1.IngressRule
+	var tlsHosts []string
 
 	for _, route := range routes {
 		path := route.Path
 		if path == "" {
 			path = "/"
 		}
+		host := fmt.Sprintf("%s.%s", route.Host, route.Domain)
+		tlsHosts = append(tlsHosts, host)
 		rules = append(rules, networkingv1.IngressRule{
-			Host: fmt.Sprintf("%s.%s", route.Host, route.Domain),
+			Host: host,
 			IngressRuleValue: networkingv1.IngressRuleValue{
 				HTTP: &networkingv1.HTTPIngressRuleValue{
 					Paths: []networkingv1.HTTPIngressPath{
@@ -61,6 +67,16 @@ func (c *Client) CreateIngress(ctx context.Context, appName string, routes []mod
 		},
 	}
 
+	// Add TLS if the wildcard TLS secret exists
+	if c.HasTLSSecret(ctx) {
+		ingress.Spec.TLS = []networkingv1.IngressTLS{
+			{
+				Hosts:      tlsHosts,
+				SecretName: tlsSecretName,
+			},
+		}
+	}
+
 	existing, err := c.Clientset.NetworkingV1().Ingresses(c.Namespace).Get(ctx, appName, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		_, err = c.Clientset.NetworkingV1().Ingresses(c.Namespace).Create(ctx, ingress, metav1.CreateOptions{})
@@ -72,6 +88,85 @@ func (c *Client) CreateIngress(ctx context.Context, appName string, routes []mod
 		return fmt.Errorf("creating ingress for %s: %w", appName, err)
 	}
 	return nil
+}
+
+// CreateSystemIngress creates an ingress for a system service (e.g., Keycloak).
+// The service is expected to exist in the client's namespace.
+func (c *Client) CreateSystemIngress(ctx context.Context, name, domain string, servicePort int32) error {
+	pathType := networkingv1.PathTypePrefix
+	ingressClassName := "nginx"
+	host := fmt.Sprintf("%s.%s", name, domain)
+
+	annotations := map[string]string{}
+	// Keycloak needs larger buffer for JWT headers
+	if name == keycloakName {
+		annotations["nginx.ingress.kubernetes.io/proxy-buffer-size"] = "128k"
+	}
+
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.Namespace,
+			Labels: map[string]string{
+				"app":                          name,
+				"app.kubernetes.io/managed-by": labelManagedBy,
+				"microfoundry.io/system":       "true",
+			},
+			Annotations: annotations,
+		},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: &ingressClassName,
+			Rules: []networkingv1.IngressRule{
+				{
+					Host: host,
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								{
+									Path:     "/",
+									PathType: &pathType,
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: name,
+											Port: networkingv1.ServiceBackendPort{Number: servicePort},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Add TLS if the wildcard TLS secret exists
+	if c.HasTLSSecret(ctx) {
+		ingress.Spec.TLS = []networkingv1.IngressTLS{
+			{
+				Hosts:      []string{host},
+				SecretName: tlsSecretName,
+			},
+		}
+	}
+
+	existing, err := c.Clientset.NetworkingV1().Ingresses(c.Namespace).Get(ctx, name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		_, err = c.Clientset.NetworkingV1().Ingresses(c.Namespace).Create(ctx, ingress, metav1.CreateOptions{})
+	} else if err == nil {
+		ingress.ResourceVersion = existing.ResourceVersion
+		_, err = c.Clientset.NetworkingV1().Ingresses(c.Namespace).Update(ctx, ingress, metav1.UpdateOptions{})
+	}
+	if err != nil {
+		return fmt.Errorf("creating system ingress for %s: %w", name, err)
+	}
+	return nil
+}
+
+// HasTLSSecret checks if the TLS wildcard secret exists in the client's namespace.
+func (c *Client) HasTLSSecret(ctx context.Context) bool {
+	_, err := c.Clientset.CoreV1().Secrets(c.Namespace).Get(ctx, tlsSecretName, metav1.GetOptions{})
+	return err == nil
 }
 
 // DeleteIngress removes the Ingress resource for an app.

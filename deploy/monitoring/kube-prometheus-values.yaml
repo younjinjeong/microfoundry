@@ -8,15 +8,20 @@ grafana:
     ingressClassName: nginx
     hosts:
       - grafana.cf-local.dev
+    tls:
+      - secretName: mf-tls-wildcard
+        hosts:
+          - grafana.cf-local.dev
   grafana.ini:
     server:
-      root_url: "http://grafana.cf-local.dev"
+      root_url: "https://grafana.cf-local.dev"
     auth.anonymous:
       enabled: true
       org_role: Viewer
     security:
       allow_embedding: true
       cookie_samesite: none
+      cookie_secure: true
     auth:
       disable_login_form: false
   sidecar:

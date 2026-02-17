@@ -30,6 +30,9 @@ type Server struct {
 	keycloakAdmin *auth.KeycloakAdminClient
 	opa           *auth.OPAEngine
 	auditLog      *auth.AuditLog
+	// TLS (empty when TLS disabled)
+	tlsCertFile string
+	tlsKeyFile  string
 }
 
 // ServerOption configures optional Server features.
@@ -69,6 +72,14 @@ func WithOPA(opa *auth.OPAEngine) ServerOption {
 func WithAuditLog(al *auth.AuditLog) ServerOption {
 	return func(s *Server) {
 		s.auditLog = al
+	}
+}
+
+// WithTLS enables HTTPS on the admin server.
+func WithTLS(certFile, keyFile string) ServerOption {
+	return func(s *Server) {
+		s.tlsCertFile = certFile
+		s.tlsKeyFile = keyFile
 	}
 }
 
@@ -293,6 +304,10 @@ func (s *Server) ListenAndServe(addr string) error {
 	}
 
 	handler = monitoring.InstrumentHandler(s.metrics, handler)
+
+	if s.tlsCertFile != "" && s.tlsKeyFile != "" {
+		return http.ListenAndServeTLS(addr, s.tlsCertFile, s.tlsKeyFile, handler)
+	}
 	return http.ListenAndServe(addr, handler)
 }
 

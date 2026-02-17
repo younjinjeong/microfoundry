@@ -5,12 +5,15 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/younjinjeong/microfoundry/pkg/auth"
 	"github.com/younjinjeong/microfoundry/pkg/config"
+	"github.com/younjinjeong/microfoundry/pkg/hosts"
 	"github.com/younjinjeong/microfoundry/pkg/k8s"
+	"github.com/younjinjeong/microfoundry/pkg/tls"
 )
 
 func setupCmd() *cobra.Command {
@@ -198,6 +201,132 @@ func setupKeycloakIdPCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("provider")
 	_ = cmd.MarkFlagRequired("client-id")
 	_ = cmd.MarkFlagRequired("client-secret")
+
+	return cmd
+}
+
+func setupTLSCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "tls",
+		Short: "Generate locally-trusted TLS certificates with mkcert",
+		Long: `Generates a wildcard TLS certificate for the cluster domain using mkcert,
+creates Kubernetes TLS secrets, and sets up ingress routes for Keycloak and Grafana.
+
+Requires mkcert to be installed: https://github.com/FiloSottile/mkcert`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return fmt.Errorf("loading config: %w", err)
+			}
+
+			_, clusterCfg, ok := cfg.Kubernetes.GetActiveCluster()
+			if !ok {
+				return fmt.Errorf("no active cluster configured")
+			}
+
+			client, err := k8s.NewClient(clusterCfg.Context, clusterCfg.Namespace, clusterCfg.Domain)
+			if err != nil {
+				return fmt.Errorf("connecting to cluster: %w", err)
+			}
+
+			ctx := context.Background()
+			domain := clusterCfg.Domain
+
+			// Step 1: Check mkcert is installed
+			fmt.Println("[1/8] Checking mkcert installation...")
+			if err := tls.EnsureMkcertInstalled(); err != nil {
+				return err
+			}
+			fmt.Println("  mkcert found")
+
+			// Step 2: Install root CA
+			fmt.Println("[2/8] Installing mkcert root CA (may prompt for password)...")
+			if err := tls.InstallRootCA(); err != nil {
+				return fmt.Errorf("installing root CA: %w", err)
+			}
+			fmt.Println("  Root CA installed and trusted")
+
+			// Step 3: Generate wildcard cert
+			fmt.Printf("[3/8] Generating wildcard certificate for *.%s...\n", domain)
+			certFile, keyFile, err := tls.GenerateCert(domain)
+			if err != nil {
+				return fmt.Errorf("generating certificate: %w", err)
+			}
+			defer tls.Cleanup(certFile, keyFile)
+
+			certPEM, err := os.ReadFile(certFile)
+			if err != nil {
+				return fmt.Errorf("reading cert: %w", err)
+			}
+			keyPEM, err := os.ReadFile(keyFile)
+			if err != nil {
+				return fmt.Errorf("reading key: %w", err)
+			}
+
+			// Step 4: Create TLS secret in app namespace
+			fmt.Printf("[4/8] Creating TLS secret in %s namespace...\n", clusterCfg.Namespace)
+			if err := tls.EnsureTLSSecret(ctx, client.Clientset, clusterCfg.Namespace, certPEM, keyPEM); err != nil {
+				return fmt.Errorf("creating TLS secret in %s: %w", clusterCfg.Namespace, err)
+			}
+			fmt.Printf("  Secret '%s' created in %s\n", tls.SecretName, clusterCfg.Namespace)
+
+			// Step 5: Create TLS secret in monitoring namespace
+			monitoringNS := "monitoring"
+			fmt.Printf("[5/8] Creating TLS secret in %s namespace...\n", monitoringNS)
+			if err := tls.EnsureTLSSecret(ctx, client.Clientset, monitoringNS, certPEM, keyPEM); err != nil {
+				return fmt.Errorf("creating TLS secret in %s: %w", monitoringNS, err)
+			}
+			fmt.Printf("  Secret '%s' created in %s\n", tls.SecretName, monitoringNS)
+
+			// Step 6: Create Keycloak ingress
+			fmt.Println("[6/8] Creating Keycloak ingress route...")
+			if err := client.CreateSystemIngress(ctx, "keycloak", domain, int32(client.KeycloakPort())); err != nil {
+				return fmt.Errorf("creating keycloak ingress: %w", err)
+			}
+			fmt.Printf("  Ingress: keycloak.%s → keycloak:%d\n", domain, client.KeycloakPort())
+
+			// Step 7: Add hosts entries
+			fmt.Println("[7/8] Updating hosts file...")
+			systemHosts := []string{
+				fmt.Sprintf("keycloak.%s", domain),
+				fmt.Sprintf("grafana.%s", domain),
+			}
+			for _, h := range systemHosts {
+				if err := hosts.Add(h); err != nil {
+					fmt.Printf("  WARN: Could not add %s (%v)\n", h, err)
+					fmt.Printf("  TIP: Add '127.0.0.1 %s' to your hosts file manually\n", h)
+				} else {
+					fmt.Printf("  Hosts: OK (%s)\n", h)
+				}
+			}
+
+			// Step 8: Save certs for admin server
+			fmt.Println("[8/8] Saving certificates to ~/.mf/...")
+			certPath, keyPath, err := tls.SaveCertsToConfigDir(certPEM, keyPEM)
+			if err != nil {
+				fmt.Printf("  WARN: Could not save certs to ~/.mf/ (%v)\n", err)
+			} else {
+				fmt.Printf("  Saved: %s, %s\n", certPath, keyPath)
+			}
+
+			// Summary
+			fmt.Println()
+			fmt.Println("=== TLS Setup Complete ===")
+			fmt.Println()
+			fmt.Printf("  Keycloak:  https://keycloak.%s\n", domain)
+			fmt.Printf("  Grafana:   https://grafana.%s\n", domain)
+			fmt.Println()
+			fmt.Println("All apps pushed with `mf push` will automatically get HTTPS routes.")
+			fmt.Println()
+			fmt.Println("To enable TLS on the admin server, run:")
+			fmt.Printf("  mf admin --tls-cert %s --tls-key %s\n", certPath, keyPath)
+			fmt.Println()
+			fmt.Println("Add to your mf.yaml cluster config:")
+			fmt.Println("  tls: true")
+
+			return nil
+		},
+	}
 
 	return cmd
 }

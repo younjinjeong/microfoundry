@@ -21,6 +21,7 @@ func main() {
 	setupRoot := setupCmd()
 	setupRoot.AddCommand(setupKeycloakRealmCmd())
 	setupRoot.AddCommand(setupKeycloakIdPCmd())
+	setupRoot.AddCommand(setupTLSCmd())
 
 	rootCmd.AddCommand(
 		versionCmd(),

@@ -171,6 +171,9 @@ func NewTemplateRenderer() *TemplateRenderer {
 		"topology_detail.html",
 		"topology_upload.html",
 		"monitoring.html",
+		"settings_registry.html",
+		"settings_webhooks.html",
+		"settings_smtp.html",
 	}
 
 	pages := make(map[string]*template.Template, len(pageFiles)+3)

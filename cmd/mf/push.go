@@ -16,6 +16,7 @@ import (
 	"github.com/younjinjeong/microfoundry/pkg/k8s"
 	"github.com/younjinjeong/microfoundry/pkg/manifest"
 	"github.com/younjinjeong/microfoundry/pkg/models"
+	"github.com/younjinjeong/microfoundry/pkg/settings"
 )
 
 func pushCmd() *cobra.Command {
@@ -94,12 +95,30 @@ func pushCmd() *cobra.Command {
 				app.Env["MICROFOUNDRY_OWNER"] = u.Username
 			}
 
+			// Connect to K8s early so we can read registry settings
+			k8sClient, err := k8s.NewClient(cluster.Context, cluster.Namespace, domain)
+			if err != nil {
+				return fmt.Errorf("connecting to kubernetes: %w", err)
+			}
+
+			// Determine image prefix from registry settings (if configured)
+			imagePrefix := "microfoundry/"
+			var registryCfg *models.RegistryConfig
+			var registryPassword string
+			store := settings.NewStore(k8sClient)
+			if ps, err := store.Get(ctx); err == nil && ps.Registry.Enabled && ps.Registry.URL != "" {
+				registryCfg = &ps.Registry
+				imagePrefix = registryCfg.ImagePrefix()
+				registryPassword, _ = store.GetCredential(ctx, "registry-password")
+				fmt.Printf("Registry: %s (project: %s)\n", registryCfg.URL, registryCfg.Project)
+			}
+
 			// Phase 1: Build
 			fmt.Printf("Building %s...\n", app.Name)
 			strategy := build.DetectBuildStrategy(srcDir)
 			fmt.Printf("  Strategy: %s\n", strategy)
 
-			builder := build.NewBuilder("microfoundry/")
+			builder := build.NewBuilder(imagePrefix)
 			result, err := builder.Build(app.Name, srcDir)
 			if err != nil {
 				fmt.Printf("  Build: FAILED\n")
@@ -109,12 +128,29 @@ func pushCmd() *cobra.Command {
 			app.State = models.AppStateDeploying
 			fmt.Printf("  Build: OK (%s)\n", result.ImageRef)
 
+			// Phase 1.5: Push to registry (if configured)
+			if registryCfg != nil && registryPassword != "" {
+				fmt.Printf("Pushing to registry %s...\n", registryCfg.URL)
+				if err := builder.Login(registryCfg.URL, registryCfg.Username, registryPassword); err != nil {
+					return fmt.Errorf("registry login failed: %w", err)
+				}
+				fmt.Printf("  Login: OK\n")
+
+				if err := builder.Push(result.ImageRef); err != nil {
+					return fmt.Errorf("registry push failed: %w", err)
+				}
+				fmt.Printf("  Push: OK (%s)\n", result.ImageRef)
+
+				// Ensure imagePullSecret exists in namespace
+				if err := k8sClient.EnsureImagePullSecret(ctx, registryCfg.URL, registryCfg.Username, registryPassword); err != nil {
+					fmt.Printf("  ImagePullSecret: WARN (%v)\n", err)
+				} else {
+					fmt.Printf("  ImagePullSecret: OK\n")
+				}
+			}
+
 			// Phase 2: Deploy to K8s
 			fmt.Printf("Deploying %s to cluster %s...\n", app.Name, cfg.Kubernetes.Active)
-			k8sClient, err := k8s.NewClient(cluster.Context, cluster.Namespace, domain)
-			if err != nil {
-				return fmt.Errorf("connecting to kubernetes: %w", err)
-			}
 
 			if err := k8sClient.EnsureNamespace(ctx); err != nil {
 				return fmt.Errorf("namespace setup: %w", err)

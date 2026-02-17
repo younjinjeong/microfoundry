@@ -74,6 +74,16 @@ func (c *Client) DeployApp(ctx context.Context, app models.App, routes []models.
 		command = []string{"/bin/sh", "-c", app.Command}
 	}
 
+	// Use PullAlways when image references a remote registry (contains a '/' with a dot/colon prefix)
+	pullPolicy := corev1.PullIfNotPresent
+	if strings.Contains(app.ImageRef, ".") || strings.Contains(app.ImageRef, ":") {
+		// If imageRef looks like "harbor.local:30003/project/app:latest", use PullAlways
+		parts := strings.SplitN(app.ImageRef, "/", 2)
+		if len(parts) > 1 && (strings.Contains(parts[0], ".") || strings.Contains(parts[0], ":")) {
+			pullPolicy = corev1.PullAlways
+		}
+	}
+
 	container := corev1.Container{
 		Name:            "app",
 		Image:           app.ImageRef,
@@ -81,7 +91,7 @@ func (c *Client) DeployApp(ctx context.Context, app models.App, routes []models.
 		Env:             envVars,
 		Command:         command,
 		ReadinessProbe:  readinessProbe,
-		ImagePullPolicy: corev1.PullIfNotPresent,
+		ImagePullPolicy: pullPolicy,
 		Resources: corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceMemory: resource.MustParse(fmt.Sprintf("%dMi", app.MemoryMB/2)),
@@ -130,7 +140,10 @@ func (c *Client) DeployApp(ctx context.Context, app models.App, routes []models.
 						"prometheus.io/path":         "/metrics",
 					},
 				},
-				Spec:       corev1.PodSpec{Containers: []corev1.Container{container}},
+				Spec: corev1.PodSpec{
+					Containers:       []corev1.Container{container},
+					ImagePullSecrets: c.imagePullSecrets(ctx),
+				},
 			},
 		},
 	}

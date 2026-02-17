@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // Builder handles source-to-image builds.
@@ -98,6 +99,31 @@ func DetectBuildStrategy(srcDir string) string {
 		return "cnb"
 	}
 	return "none"
+}
+
+// Login authenticates with a Docker registry via stdin to avoid leaking
+// credentials in the process list.
+func (b *Builder) Login(registry, username, password string) error {
+	cmd := exec.Command("docker", "login", registry,
+		"--username", username,
+		"--password-stdin")
+	cmd.Stdin = strings.NewReader(password)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("docker login failed: %s\n%s", err, string(output))
+	}
+	return nil
+}
+
+// Push pushes a built image to the remote registry.
+func (b *Builder) Push(imageRef string) error {
+	cmd := exec.Command("docker", "push", imageRef)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("docker push failed: %s\n%s", err, string(output))
+	}
+	return nil
 }
 
 // ImageExists checks if a Docker image exists locally.

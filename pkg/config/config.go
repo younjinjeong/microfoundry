@@ -14,6 +14,26 @@ type Config struct {
 	GitHub     GitHubConfig     `mapstructure:"github"`
 	Kubernetes KubernetesConfig `mapstructure:"kubernetes"`
 	Monitoring MonitoringConfig `mapstructure:"monitoring"`
+	Registry   RegistryConfig   `mapstructure:"registry"`
+	SMTP       SMTPConfig       `mapstructure:"smtp"`
+}
+
+// RegistryConfig provides file-based defaults for container registry settings.
+// Runtime settings from the admin UI (stored in K8s ConfigMap) take precedence.
+type RegistryConfig struct {
+	URL      string `mapstructure:"url"`
+	Project  string `mapstructure:"project"`
+	Username string `mapstructure:"username"`
+	Insecure bool   `mapstructure:"insecure"`
+}
+
+// SMTPConfig provides file-based defaults for SMTP settings.
+type SMTPConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Username string `mapstructure:"username"`
+	FromAddr string `mapstructure:"from_addr"`
+	TLS      bool   `mapstructure:"tls"`
 }
 
 // MonitoringConfig holds endpoints for the monitoring stack.

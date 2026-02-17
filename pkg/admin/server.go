@@ -100,6 +100,20 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /monitoring", s.MonitoringHandler)
 	s.mux.HandleFunc("GET /monitoring/alerts", s.AlertsListHandler)
 
+	// Settings routes — Registry
+	s.mux.HandleFunc("GET /settings/registry", s.RegistrySettingsHandler)
+	s.mux.HandleFunc("POST /settings/registry", s.SaveRegistryHandler)
+	s.mux.HandleFunc("POST /settings/registry/test", s.TestRegistryHandler)
+	// Settings routes — Webhooks
+	s.mux.HandleFunc("GET /settings/webhooks", s.WebhooksSettingsHandler)
+	s.mux.HandleFunc("POST /settings/webhooks", s.CreateWebhookHandler)
+	s.mux.HandleFunc("DELETE /settings/webhooks/{id}", s.DeleteWebhookHandler)
+	s.mux.HandleFunc("POST /settings/webhooks/{id}/test", s.TestWebhookHandler)
+	// Settings routes — SMTP
+	s.mux.HandleFunc("GET /settings/smtp", s.SMTPSettingsHandler)
+	s.mux.HandleFunc("POST /settings/smtp", s.SaveSMTPHandler)
+	s.mux.HandleFunc("POST /settings/smtp/test", s.TestSMTPHandler)
+
 	// Catalog visibility routes
 	s.mux.HandleFunc("POST /catalog/{type}/{plan}/visibility", s.TogglePlanVisibilityHandler)
 	s.mux.HandleFunc("POST /catalog/{type}/visibility", s.ToggleServiceVisibilityHandler)
@@ -151,6 +165,14 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/apps/{name}/red-metrics", s.APIAppREDMetricsHandler)
 	s.mux.HandleFunc("GET /api/apps/{name}/health", s.APIAppHealthHandler)
 	s.mux.HandleFunc("GET /api/apps/{name}/observability", s.APIAppObservabilityHandler)
+
+	// Settings API routes
+	s.mux.HandleFunc("GET /api/settings", s.APIGetSettingsHandler)
+	s.mux.HandleFunc("PUT /api/settings/registry", s.APISaveRegistryHandler)
+	s.mux.HandleFunc("GET /api/settings/webhooks", s.APIGetWebhooksHandler)
+	s.mux.HandleFunc("POST /api/settings/webhooks", s.APICreateWebhookHandler)
+	s.mux.HandleFunc("DELETE /api/settings/webhooks/{id}", s.APIDeleteWebhookHandler)
+	s.mux.HandleFunc("PUT /api/settings/smtp", s.APISaveSMTPHandler)
 }
 
 func (s *Server) ListenAndServe(addr string) error {

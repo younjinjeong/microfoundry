@@ -36,3 +36,18 @@ monitoring:
   alertmanager_url: "http://kube-prometheus-kube-prome-alertmanager.monitoring.svc.cluster.local:9093"
   prometheus_url: "http://kube-prometheus-kube-prome-prometheus.monitoring.svc.cluster.local:9090"
   beyla_enabled: true
+
+# Container registry (file-based defaults; admin UI settings stored in K8s take precedence)
+# registry:
+#   url: "harbor.local:30003"
+#   project: "microfoundry"
+#   username: "admin"
+#   insecure: false
+
+# SMTP server (file-based defaults; admin UI settings stored in K8s take precedence)
+# smtp:
+#   host: "smtp.gmail.com"
+#   port: 587
+#   username: "user@example.com"
+#   from_addr: "noreply@microfoundry.local"
+#   tls: true

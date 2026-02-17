@@ -41,6 +41,10 @@ func createServiceCmd() *cobra.Command {
 				return err
 			}
 
+			if err := k8sClient.EnsureNamespace(ctx); err != nil {
+				return fmt.Errorf("namespace setup: %w", err)
+			}
+
 			mgr := service.NewManager(k8sClient)
 
 			// Check if already exists

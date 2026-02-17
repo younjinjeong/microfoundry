@@ -1,0 +1,137 @@
+{{define "tab_iam_users.html"}}
+<div class="space-y-4">
+    {{if .NotConfigured}}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+        <svg class="w-10 h-10 mx-auto mb-3 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+        </svg>
+        <p class="text-yellow-800 font-medium">Keycloak Admin Not Configured</p>
+        <p class="text-yellow-600 text-sm mt-1">Set <code class="bg-yellow-100 px-1 rounded">admin_base_url</code>, <code class="bg-yellow-100 px-1 rounded">admin_client_id</code>, and <code class="bg-yellow-100 px-1 rounded">admin_client_secret</code> in your auth config.</p>
+    </div>
+    {{else}}
+    {{if .Error}}
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+        <p class="text-red-800 text-sm">Error loading users: {{.Error}}</p>
+    </div>
+    {{end}}
+
+    <!-- Search + Create -->
+    <div class="flex items-center justify-between">
+        <form hx-get="/users/tab/users" hx-target="#tab-content" class="flex items-center space-x-2">
+            <input type="text" name="search" value="{{.Search}}" placeholder="Search users..."
+                   class="rounded-md border-gray-300 shadow-sm text-sm p-2 border focus:ring-blue-500 focus:border-blue-500 w-64">
+            <button type="submit" class="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 border">Search</button>
+        </form>
+        <button onclick="document.getElementById('create-user-form').classList.toggle('hidden')"
+                class="px-3 py-1.5 bg-gray-900 text-white text-sm rounded-md hover:bg-gray-800">+ New User</button>
+    </div>
+
+    <!-- Create User Form -->
+    <div id="create-user-form" class="hidden bg-white rounded-lg border border-gray-200 p-6">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">Create User</h4>
+        <form method="POST" action="/users/keycloak" class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Username</label>
+                <input type="text" name="username" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Email</label>
+                <input type="email" name="email" required
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">First Name</label>
+                <input type="text" name="first_name"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Last Name</label>
+                <input type="text" name="last_name"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-2 border focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-sm font-medium text-gray-700">Password</label>
+                <input type="password" name="password"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-2 border focus:ring-blue-500 focus:border-blue-500"
+                       placeholder="Leave empty to require user to set password">
+            </div>
+            <div class="col-span-2 flex space-x-2">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">Create User</button>
+                <button type="button" onclick="document.getElementById('create-user-form').classList.add('hidden')"
+                        class="px-4 py-2 bg-white text-gray-700 text-sm rounded-md border hover:bg-gray-50">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-white rounded-lg border border-gray-200">
+        <div class="px-4 py-3 border-b border-gray-200">
+            <span class="text-sm text-gray-500">{{.TotalUsers}} users in Keycloak</span>
+        </div>
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roles</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {{range .Users}}
+                <tr>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center">
+                            <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-sm font-medium text-blue-700">
+                                {{if .FirstName}}{{slice .FirstName 0 1}}{{else}}{{slice .Username 0 1}}{{end}}
+                            </div>
+                            <div class="ml-3">
+                                <div class="text-sm font-medium text-gray-900">{{.FirstName}} {{.LastName}}</div>
+                                <div class="text-xs text-gray-500">{{.Email}}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-700 font-mono">{{.Username}}</td>
+                    <td class="px-4 py-3">
+                        <div class="flex flex-wrap gap-1">
+                            {{range .RealmRoles}}
+                            {{if eq . "platform-admin"}}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">{{.}}</span>
+                            {{else if eq . "default-roles-microfoundry"}}
+                            {{else}}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{{.}}</span>
+                            {{end}}
+                            {{end}}
+                        </div>
+                    </td>
+                    <td class="px-4 py-3">
+                        {{if .Enabled}}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>
+                        {{else}}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Disabled</span>
+                        {{end}}
+                    </td>
+                    <td class="px-4 py-3 text-right space-x-1">
+                        <button hx-post="/users/keycloak/{{.ID}}/toggle"
+                                hx-confirm="{{if .Enabled}}Disable{{else}}Enable{{end}} user '{{.Username}}'?"
+                                class="text-xs {{if .Enabled}}text-yellow-600 hover:text-yellow-800{{else}}text-green-600 hover:text-green-800{{end}}">
+                            {{if .Enabled}}Disable{{else}}Enable{{end}}
+                        </button>
+                        <button hx-delete="/users/keycloak/{{.ID}}"
+                                hx-confirm="Delete user '{{.Username}}'? This cannot be undone."
+                                class="text-xs text-red-600 hover:text-red-800">Delete</button>
+                    </td>
+                </tr>
+                {{else}}
+                <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-500">No users found</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{end}}
+</div>
+{{end}}

@@ -11,9 +11,9 @@ func (s *Server) orgStore() *auth.OrgStore {
 	return s.orgStore_
 }
 
-// OrgsPageHandler renders the organization management page.
+// OrgsPageHandler renders the organization management page with tabbed layout.
 func (s *Server) OrgsPageHandler(w http.ResponseWriter, r *http.Request) {
-	data := s.pageData("Users & Organizations", "users")
+	data := s.pageDataWithUser(r, "Users & Organizations", "users")
 
 	user := auth.UserFromContext(r.Context())
 	if user == nil {
@@ -22,38 +22,94 @@ func (s *Server) OrgsPageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-	store := s.orgStore()
-
-	orgs, _ := store.GetUserOrgs(ctx, user.Email)
-
-	selectedOrg := r.URL.Query().Get("org")
-	if selectedOrg == "" && len(orgs) > 0 {
-		selectedOrg = orgs[0].ID
+	tab := r.URL.Query().Get("tab")
+	if tab == "" {
+		tab = "orgs"
 	}
 
 	content := map[string]any{
-		"Orgs":        orgs,
-		"SelectedOrg": selectedOrg,
-		"ActiveOrg":   user.ActiveOrgID,
+		"Tab":  tab,
+		"User": user,
 	}
 
-	if selectedOrg != "" {
-		orgDetail, err := store.Get(ctx, selectedOrg)
-		if err == nil {
-			content["OrgDetail"] = orgDetail
-			members, _ := store.ListMembers(ctx, selectedOrg)
-			content["Members"] = members
+	switch tab {
+	case "orgs":
+		ctx := r.Context()
+		store := s.orgStore()
+		orgs, _ := store.GetUserOrgs(ctx, user.Email)
 
-			// Determine current user's role in this org
-			userRole := "viewer"
-			for _, m := range members {
-				if m.Email == user.Email {
-					userRole = m.Role
-					break
+		selectedOrg := r.URL.Query().Get("org")
+		if selectedOrg == "" && len(orgs) > 0 {
+			selectedOrg = orgs[0].ID
+		}
+
+		content["Orgs"] = orgs
+		content["SelectedOrg"] = selectedOrg
+		content["ActiveOrg"] = user.ActiveOrgID
+
+		if selectedOrg != "" {
+			orgDetail, err := store.Get(ctx, selectedOrg)
+			if err == nil {
+				content["OrgDetail"] = orgDetail
+				members, _ := store.ListMembers(ctx, selectedOrg)
+				content["Members"] = members
+
+				userRole := "viewer"
+				for _, m := range members {
+					if m.Email == user.Email {
+						userRole = m.Role
+						break
+					}
 				}
+				content["UserRole"] = userRole
 			}
-			content["UserRole"] = userRole
+		}
+
+	case "users":
+		if s.keycloakAdmin != nil {
+			search := r.URL.Query().Get("search")
+			users, total, err := s.keycloakAdmin.ListUsers(r.Context(), search, 0, 50)
+			if err != nil {
+				content["Error"] = err.Error()
+			} else {
+				for i := range users {
+					roles, _ := s.keycloakAdmin.GetUserRoles(r.Context(), users[i].ID)
+					roleNames := make([]string, 0, len(roles))
+					for _, role := range roles {
+						roleNames = append(roleNames, role.Name)
+					}
+					users[i].RealmRoles = roleNames
+				}
+				content["Users"] = users
+				content["TotalUsers"] = total
+				content["Search"] = search
+			}
+			realmRoles, _ := s.keycloakAdmin.GetRealmRoles(r.Context())
+			content["RealmRoles"] = realmRoles
+		} else {
+			content["NotConfigured"] = true
+		}
+
+	case "policies":
+		if s.opa != nil {
+			content["Policies"] = s.opa.GetPolicies()
+		} else {
+			content["NotConfigured"] = true
+		}
+
+	case "audit":
+		if s.auditLog != nil {
+			userFilter := r.URL.Query().Get("user")
+			resourceFilter := r.URL.Query().Get("resource")
+			actionFilter := r.URL.Query().Get("action")
+			entries := s.auditLog.ListFiltered(userFilter, resourceFilter, actionFilter, 100)
+			content["Entries"] = entries
+			content["TotalCount"] = s.auditLog.Count()
+			content["UserFilter"] = userFilter
+			content["ResourceFilter"] = resourceFilter
+			content["ActionFilter"] = actionFilter
+		} else {
+			content["NotConfigured"] = true
 		}
 	}
 

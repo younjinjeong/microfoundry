@@ -61,3 +61,8 @@ monitoring:
 #   client_secret: "your-client-secret"
 #   redirect_url: "http://localhost:8080/auth/callback"
 #   session_key: ""  # 64-char hex string; auto-generated if empty
+#   # Keycloak Admin API (for user CRUD, SCIM, and IAM management)
+#   admin_base_url: "http://localhost:8180"
+#   admin_client_id: "admin-cli"
+#   admin_client_secret: "your-admin-secret"
+#   realm: "microfoundry"

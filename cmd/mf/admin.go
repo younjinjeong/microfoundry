@@ -63,6 +63,30 @@ func adminCmd() *cobra.Command {
 
 				opts = append(opts, admin.WithAuth(oidcAuth, sessions, orgStore))
 				fmt.Printf("Authentication enabled (Keycloak: %s)\n", cfg.Auth.IssuerURL)
+
+				// Keycloak Admin API client (optional — needs admin_base_url)
+				if cfg.Auth.AdminBaseURL != "" {
+					kcAdmin := auth.NewKeycloakAdminClient(
+						cfg.Auth.AdminBaseURL,
+						cfg.Auth.Realm,
+						cfg.Auth.AdminClientID,
+						cfg.Auth.AdminClientSecret,
+					)
+					opts = append(opts, admin.WithKeycloakAdmin(kcAdmin))
+					fmt.Printf("Keycloak Admin API enabled (%s)\n", cfg.Auth.AdminBaseURL)
+				}
+
+				// OPA authorization engine
+				opaEngine, err := auth.NewOPAEngine()
+				if err != nil {
+					return fmt.Errorf("initializing OPA engine: %w", err)
+				}
+				opts = append(opts, admin.WithOPA(opaEngine))
+				fmt.Println("OPA authorization enabled")
+
+				// Audit log
+				auditLog := auth.NewAuditLog(1000)
+				opts = append(opts, admin.WithAuditLog(auditLog))
 			}
 
 			srv := admin.NewServer(clientManager, cfg, version, opts...)

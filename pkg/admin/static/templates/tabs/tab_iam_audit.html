@@ -1,0 +1,109 @@
+{{define "tab_iam_audit.html"}}
+<div class="space-y-4">
+    {{if .NotConfigured}}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+        <svg class="w-10 h-10 mx-auto mb-3 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <p class="text-yellow-800 font-medium">Audit Log Not Available</p>
+        <p class="text-yellow-600 text-sm mt-1">Enable authentication to activate OPA authorization audit logging.</p>
+    </div>
+    {{else}}
+    <!-- Filters -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4">
+        <form hx-get="/users/tab/audit" hx-target="#tab-content" class="flex items-end space-x-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-700">User</label>
+                <input type="text" name="user" value="{{.UserFilter}}" placeholder="email@example.com"
+                       class="mt-1 rounded-md border-gray-300 shadow-sm text-sm p-2 border focus:ring-blue-500 focus:border-blue-500 w-48">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Resource</label>
+                <select name="resource" class="mt-1 rounded-md border-gray-300 shadow-sm text-sm p-2 border">
+                    <option value="">All</option>
+                    <option value="apps" {{if eq .ResourceFilter "apps"}}selected{{end}}>Apps</option>
+                    <option value="services" {{if eq .ResourceFilter "services"}}selected{{end}}>Services</option>
+                    <option value="secrets" {{if eq .ResourceFilter "secrets"}}selected{{end}}>Secrets</option>
+                    <option value="clusters" {{if eq .ResourceFilter "clusters"}}selected{{end}}>Clusters</option>
+                    <option value="settings" {{if eq .ResourceFilter "settings"}}selected{{end}}>Settings</option>
+                    <option value="users" {{if eq .ResourceFilter "users"}}selected{{end}}>Users</option>
+                    <option value="scim" {{if eq .ResourceFilter "scim"}}selected{{end}}>SCIM</option>
+                    <option value="catalog" {{if eq .ResourceFilter "catalog"}}selected{{end}}>Catalog</option>
+                    <option value="monitoring" {{if eq .ResourceFilter "monitoring"}}selected{{end}}>Monitoring</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-700">Action</label>
+                <select name="action" class="mt-1 rounded-md border-gray-300 shadow-sm text-sm p-2 border">
+                    <option value="">All</option>
+                    <option value="read" {{if eq .ActionFilter "read"}}selected{{end}}>Read</option>
+                    <option value="write" {{if eq .ActionFilter "write"}}selected{{end}}>Write</option>
+                    <option value="delete" {{if eq .ActionFilter "delete"}}selected{{end}}>Delete</option>
+                </select>
+            </div>
+            <button type="submit" class="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 border">Filter</button>
+        </form>
+    </div>
+
+    <!-- Stats -->
+    <div class="flex items-center space-x-4 text-sm text-gray-500">
+        <span>Total decisions recorded: <strong>{{.TotalCount}}</strong></span>
+        <span>Showing latest {{len .Entries}} entries</span>
+    </div>
+
+    <!-- Audit Table -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Resource</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Path</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Decision</th>
+                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {{range .Entries}}
+                <tr class="{{if not .Allowed}}bg-red-50{{end}}">
+                    <td class="px-3 py-2 text-xs text-gray-500 whitespace-nowrap font-mono">
+                        {{.Timestamp.Format "15:04:05"}}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-700">
+                        {{if .UserEmail}}{{.UserEmail}}{{else}}<span class="text-gray-400">anonymous</span>{{end}}
+                    </td>
+                    <td class="px-3 py-2">
+                        {{if eq .Action "read"}}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">read</span>
+                        {{else if eq .Action "write"}}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">write</span>
+                        {{else if eq .Action "delete"}}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">delete</span>
+                        {{else}}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{{.Action}}</span>
+                        {{end}}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-700">{{.Resource}}</td>
+                    <td class="px-3 py-2 text-xs text-gray-500 font-mono truncate max-w-xs">{{.Path}}</td>
+                    <td class="px-3 py-2">
+                        {{if .Allowed}}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">allow</span>
+                        {{else}}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">deny</span>
+                        {{end}}
+                    </td>
+                    <td class="px-3 py-2 text-xs text-gray-500 truncate max-w-xs">{{.Reason}}</td>
+                </tr>
+                {{else}}
+                <tr>
+                    <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-500">No audit entries yet</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{end}}
+</div>
+{{end}}

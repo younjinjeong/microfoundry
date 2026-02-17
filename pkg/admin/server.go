@@ -26,6 +26,10 @@ type Server struct {
 	oidcAuth  *auth.OIDCAuthenticator
 	sessions  *auth.SessionManager
 	orgStore_ *auth.OrgStore
+	// IAM (nil when not configured)
+	keycloakAdmin *auth.KeycloakAdminClient
+	opa           *auth.OPAEngine
+	auditLog      *auth.AuditLog
 }
 
 // ServerOption configures optional Server features.
@@ -44,6 +48,27 @@ func WithAuth(oidc *auth.OIDCAuthenticator, sessions *auth.SessionManager, orgSt
 func WithOrgStore(orgStore *auth.OrgStore) ServerOption {
 	return func(s *Server) {
 		s.orgStore_ = orgStore
+	}
+}
+
+// WithKeycloakAdmin enables Keycloak user management.
+func WithKeycloakAdmin(kc *auth.KeycloakAdminClient) ServerOption {
+	return func(s *Server) {
+		s.keycloakAdmin = kc
+	}
+}
+
+// WithOPA enables OPA authorization policy engine.
+func WithOPA(opa *auth.OPAEngine) ServerOption {
+	return func(s *Server) {
+		s.opa = opa
+	}
+}
+
+// WithAuditLog enables authorization audit logging.
+func WithAuditLog(al *auth.AuditLog) ServerOption {
+	return func(s *Server) {
+		s.auditLog = al
 	}
 }
 
@@ -137,12 +162,20 @@ func (s *Server) registerRoutes() {
 
 	// Users & Orgs routes
 	s.mux.HandleFunc("GET /users", s.OrgsPageHandler)
+	s.mux.HandleFunc("GET /users/tab/{tab}", s.IAMTabHandler)
 	s.mux.HandleFunc("POST /users/orgs", s.CreateOrgHandler)
 	s.mux.HandleFunc("DELETE /users/orgs/{id}", s.DeleteOrgHandler)
 	s.mux.HandleFunc("POST /users/orgs/{id}/members", s.InviteMemberHandler)
 	s.mux.HandleFunc("DELETE /users/orgs/{id}/members/{email}", s.RemoveMemberHandler)
 	s.mux.HandleFunc("POST /users/orgs/{id}/members/{email}/role", s.SetMemberRoleHandler)
 	s.mux.HandleFunc("POST /users/orgs/{id}/activate", s.SwitchOrgHandler)
+	// IAM — Keycloak user management
+	s.mux.HandleFunc("POST /users/keycloak", s.CreateKeycloakUserHandler)
+	s.mux.HandleFunc("DELETE /users/keycloak/{id}", s.DeleteKeycloakUserHandler)
+	s.mux.HandleFunc("POST /users/keycloak/{id}/toggle", s.ToggleKeycloakUserHandler)
+	s.mux.HandleFunc("POST /users/keycloak/{id}/roles", s.AssignKeycloakRoleHandler)
+	// IAM — OPA policies
+	s.mux.HandleFunc("POST /users/policies", s.SavePolicyHandler)
 
 	// Monitoring routes
 	s.mux.HandleFunc("GET /monitoring", s.MonitoringHandler)
@@ -227,14 +260,35 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/orgs/{id}", s.APIGetOrgHandler)
 	s.mux.HandleFunc("POST /api/orgs", s.APICreateOrgHandler)
 	s.mux.HandleFunc("GET /api/orgs/{id}/members", s.APIListMembersHandler)
+
+	// IAM API routes
+	s.mux.HandleFunc("GET /api/audit", s.APIAuditLogHandler)
+	s.mux.HandleFunc("GET /api/users", s.APIKeycloakUsersHandler)
+	s.mux.HandleFunc("GET /api/policies", s.APIPoliciesHandler)
+	s.mux.HandleFunc("PUT /api/policies", s.APISavePolicyHandler)
+
+	// SCIM v2 routes
+	s.mux.HandleFunc("GET /scim/v2/Users", s.SCIMListUsersHandler)
+	s.mux.HandleFunc("POST /scim/v2/Users", s.SCIMCreateUserHandler)
+	s.mux.HandleFunc("GET /scim/v2/Users/{id}", s.SCIMGetUserHandler)
+	s.mux.HandleFunc("PUT /scim/v2/Users/{id}", s.SCIMUpdateUserHandler)
+	s.mux.HandleFunc("PATCH /scim/v2/Users/{id}", s.SCIMPatchUserHandler)
+	s.mux.HandleFunc("DELETE /scim/v2/Users/{id}", s.SCIMDeleteUserHandler)
+	s.mux.HandleFunc("GET /scim/v2/ServiceProviderConfig", s.SCIMServiceProviderConfigHandler)
+	s.mux.HandleFunc("GET /scim/v2/ResourceTypes", s.SCIMResourceTypesHandler)
+	s.mux.HandleFunc("GET /scim/v2/Schemas", s.SCIMSchemasHandler)
 }
 
 func (s *Server) ListenAndServe(addr string) error {
 	var handler http.Handler = s.mux
 
-	// Apply auth middleware chain if auth is enabled
+	// OPA authorization (needs user from context → must wrap AFTER InjectUser)
+	if s.opa != nil {
+		handler = auth.OPAMiddleware(s.opa, s.sessions, s.orgStore_, s.auditLog)(handler)
+	}
+
+	// InjectUser populates user in context (wraps OUTSIDE OPA so it runs first)
 	if s.authEnabled() {
-		// InjectUser always runs (adds user to context if session exists)
 		handler = auth.InjectUser(s.sessions)(handler)
 	}
 

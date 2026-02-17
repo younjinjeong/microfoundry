@@ -83,12 +83,21 @@ spec:
     spec:
       serviceAccountName: beyla
       hostPID: true
+      # Schedule on Linux nodes; tolerate all taints so Beyla covers every node
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - operator: Exists
       containers:
         - name: beyla
-          image: grafana/beyla:latest
+          image: grafana/beyla:1.8.5@sha256:2a08ed4cc8b62a9e39e956a8dce3b30efbce7514e073afa4f2c4f73d43d0b7c1
           securityContext:
-            privileged: true
+            privileged: false
             runAsUser: 0
+            capabilities:
+              add: ["BPF", "PERFMON", "NET_ADMIN", "SYS_PTRACE"]
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
           ports:
             - containerPort: 9090
               name: metrics
@@ -100,6 +109,8 @@ spec:
               value: "32"
             - name: BEYLA_OPEN_PORT
               value: "80,443,8080,8443,3000,9090"
+            - name: BEYLA_BPF_TRACK_REQUEST_HEADERS
+              value: "false"
           volumeMounts:
             - name: beyla-config
               mountPath: /config
@@ -109,7 +120,8 @@ spec:
               memory: 128Mi
               cpu: 100m
             limits:
-              memory: 512Mi
+              memory: 256Mi
+              cpu: 500m
       volumes:
         - name: beyla-config
           configMap:

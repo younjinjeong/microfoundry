@@ -27,8 +27,9 @@ helm upgrade --install kube-prometheus prometheus-community/kube-prometheus-stac
 # Deploy Grafana Beyla (eBPF auto-instrumentation)
 echo "[4/6] Deploying Grafana Beyla (eBPF auto-instrumentation)..."
 kubectl apply -f beyla-config.yaml
+kubectl apply -f beyla-networkpolicy.yaml
 kubectl apply -f prometheus-recording-rules.yaml
-echo "  Beyla DaemonSet + recording rules applied"
+echo "  Beyla DaemonSet + NetworkPolicy + recording rules applied"
 
 # Install Loki + Promtail
 echo "[5/6] Installing Loki + Promtail..."

@@ -14,10 +14,11 @@ spec:
       interval: 15s
       rules:
         # Normalized request rate per app (Netflix IPC equivalent)
+        # Filters out empty/catch-all routes to avoid noisy aggregation
         - record: microfoundry:http_request_rate:5m
           expr: |
             sum by (k8s_deployment_name, k8s_namespace_name) (
-              rate(http_server_request_duration_seconds_count{k8s_namespace_name="microfoundry"}[5m])
+              rate(http_server_request_duration_seconds_count{k8s_namespace_name="microfoundry", http_route!~"/\\*?|"}[5m])
             )
           labels:
             source: beyla
@@ -69,5 +70,18 @@ spec:
                 rate(http_server_request_duration_seconds_bucket{k8s_namespace_name="microfoundry"}[5m])
               )
             )
+          labels:
+            source: beyla
+
+    # Lightweight recording rules for alert evaluation (reduces query cost)
+    - name: microfoundry.beyla.alert_recording
+      interval: 30s
+      rules:
+        - record: microfoundry:alert:error_rate_high
+          expr: microfoundry:http_error_rate:5m > 0.05
+          labels:
+            source: beyla
+        - record: microfoundry:alert:latency_p99_high
+          expr: microfoundry:http_latency_p99:5m > 2
           labels:
             source: beyla

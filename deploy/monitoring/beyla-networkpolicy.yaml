@@ -1,0 +1,36 @@
+# NetworkPolicy for Beyla DaemonSet
+# Restricts Beyla network access: only Prometheus scraping (ingress) and Prometheus push (egress)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: beyla-network-policy
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: beyla
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    # Allow Prometheus to scrape Beyla metrics
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: 9090
+          protocol: TCP
+  egress:
+    # Allow Beyla to communicate with Kubernetes API server
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: 443
+          protocol: TCP
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

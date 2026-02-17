@@ -57,6 +57,17 @@ spec:
 
     - name: microfoundry.beyla.alerts
       rules:
+        # Beyla heartbeat — fires when Beyla is not being scraped
+        - alert: MFBeylaDown
+          expr: up{job="beyla-metrics"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            source: beyla
+          annotations:
+            summary: "Beyla eBPF instrumentation is down"
+            description: "Beyla DaemonSet is not being scraped. All HTTP metrics and eBPF-based alerts are unavailable."
+
         - alert: MFAppHighErrorRate
           expr: microfoundry:http_error_rate:5m > 0.05
           for: 5m

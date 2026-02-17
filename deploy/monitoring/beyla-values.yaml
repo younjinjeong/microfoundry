@@ -1,0 +1,57 @@
+# Beyla eBPF auto-instrumentation values
+# Override these for different environments (dev / staging / production)
+
+beyla:
+  # Container image (pinned to digest for supply chain security)
+  image: grafana/beyla:1.8.5@sha256:2a08ed4cc8b62a9e39e956a8dce3b30efbce7514e073afa4f2c4f73d43d0b7c1
+
+  # Resource limits — tune based on cluster size
+  # ~128Mi handles up to ~200 req/s; increase for higher throughput
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 500m
+
+  # Target namespace for auto-instrumentation
+  targetNamespace: microfoundry
+
+  # Ports to monitor for HTTP traffic
+  openPorts: "80,443,8080,8443,3000,9090"
+
+  # Log level: debug, info, warn, error
+  logLevel: info
+
+  # Track request headers (disable for lower memory footprint)
+  trackHeaders: false
+
+  # Node scheduling constraints
+  nodeSelector: {}
+  #  kubernetes.io/os: linux
+
+  tolerations: []
+  #  - key: "node-role.kubernetes.io/control-plane"
+  #    effect: NoSchedule
+
+  affinity: {}
+
+# NetworkPolicy settings
+networkPolicy:
+  enabled: true
+
+# Prometheus recording rule settings
+recordingRules:
+  # Evaluation interval for RED metrics
+  interval: 15s
+  # Evaluation interval for alert-feeding recording rules
+  alertInterval: 30s
+  # Window for rate/quantile calculations
+  window: 5m
+
+# Alert thresholds (used in PrometheusRule alert expressions)
+alerts:
+  errorRateThreshold: 0.05     # 5% error rate triggers warning
+  latencyP99Threshold: 2       # 2 seconds p99 triggers warning
+  noTrafficDuration: 15m       # 15 minutes of zero traffic triggers info

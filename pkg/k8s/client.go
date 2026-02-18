@@ -17,10 +17,21 @@ type Client struct {
 	Clientset kubernetes.Interface
 	Namespace string
 	Domain    string
+	Gateway   GatewayProvider
+}
+
+// ClientOption configures optional Client parameters.
+type ClientOption func(*Client)
+
+// WithIngressClass sets the gateway provider by ingress class name.
+func WithIngressClass(ingressClass string) ClientOption {
+	return func(c *Client) {
+		c.Gateway = NewGatewayProvider(ingressClass)
+	}
 }
 
 // NewClient creates a K8s client from kubeconfig.
-func NewClient(kubeContext, namespace, domain string) (*Client, error) {
+func NewClient(kubeContext, namespace, domain string, opts ...ClientOption) (*Client, error) {
 	kubeconfig := filepath.Join(homedir.HomeDir(), ".kube", "config")
 
 	loadingRules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig}
@@ -47,11 +58,16 @@ func NewClient(kubeContext, namespace, domain string) (*Client, error) {
 		domain = "cf-local.dev"
 	}
 
-	return &Client{
+	c := &Client{
 		Clientset: clientset,
 		Namespace: namespace,
 		Domain:    domain,
-	}, nil
+		Gateway:   NewGatewayProvider("nginx"), // default
+	}
+	for _, o := range opts {
+		o(c)
+	}
+	return c, nil
 }
 
 // EnsureNamespace creates the MicroFoundry namespace if it does not exist.

@@ -46,7 +46,8 @@ func setupKeycloakCmd() *cobra.Command {
 				return fmt.Errorf("no active cluster configured")
 			}
 
-			client, err := k8s.NewClient(clusterCfg.Context, clusterCfg.Namespace, clusterCfg.Domain)
+			client, err := k8s.NewClient(clusterCfg.Context, clusterCfg.Namespace, clusterCfg.Domain,
+				k8s.WithIngressClass(clusterCfg.IngressClass))
 			if err != nil {
 				return fmt.Errorf("connecting to cluster: %w", err)
 			}
@@ -224,7 +225,8 @@ Requires mkcert to be installed: https://github.com/FiloSottile/mkcert`,
 				return fmt.Errorf("no active cluster configured")
 			}
 
-			client, err := k8s.NewClient(clusterCfg.Context, clusterCfg.Namespace, clusterCfg.Domain)
+			client, err := k8s.NewClient(clusterCfg.Context, clusterCfg.Namespace, clusterCfg.Domain,
+				k8s.WithIngressClass(clusterCfg.IngressClass))
 			if err != nil {
 				return fmt.Errorf("connecting to cluster: %w", err)
 			}

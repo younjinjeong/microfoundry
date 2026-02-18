@@ -96,7 +96,8 @@ func pushCmd() *cobra.Command {
 			}
 
 			// Connect to K8s early so we can read registry settings
-			k8sClient, err := k8s.NewClient(cluster.Context, cluster.Namespace, domain)
+			k8sClient, err := k8s.NewClient(cluster.Context, cluster.Namespace, domain,
+				k8s.WithIngressClass(cluster.IngressClass))
 			if err != nil {
 				return fmt.Errorf("connecting to kubernetes: %w", err)
 			}

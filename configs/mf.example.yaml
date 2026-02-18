@@ -12,8 +12,9 @@ kubernetes:
       domain: "cf-local.dev"
       provider: "docker-desktop"
       enabled: true
-      tls: false  # Set to true after running `mf setup tls`
-    # Example: Add an EKS cluster
+      tls: false          # Set to true after running `mf setup tls`
+      ingress_class: ""   # API gateway: "nginx" (default), "kong", or "traefik"
+    # Example: Add an EKS cluster with Kong gateway
     # my-eks-cluster:
     #   name: "Production EKS"
     #   context: "arn:aws:eks:us-east-1:123456789:cluster/my-cluster"
@@ -22,6 +23,7 @@ kubernetes:
     #   provider: "eks"
     #   region: "us-east-1"
     #   enabled: true
+    #   ingress_class: "kong"  # Uses Kong-specific annotations
 
   # Legacy single-cluster format (auto-migrated):
   # context: "docker-desktop"

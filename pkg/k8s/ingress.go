@@ -20,7 +20,7 @@ func (c *Client) CreateIngress(ctx context.Context, appName string, routes []mod
 	}
 
 	pathType := networkingv1.PathTypePrefix
-	ingressClassName := "nginx"
+	ingressClassName := c.Gateway.IngressClass()
 	var rules []networkingv1.IngressRule
 	var tlsHosts []string
 
@@ -54,12 +54,10 @@ func (c *Client) CreateIngress(ctx context.Context, appName string, routes []mod
 
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      appName,
-			Namespace: c.Namespace,
-			Labels:    appLabels(appName),
-			Annotations: map[string]string{
-				"nginx.ingress.kubernetes.io/rewrite-target": "/",
-			},
+			Name:        appName,
+			Namespace:   c.Namespace,
+			Labels:      appLabels(appName),
+			Annotations: c.Gateway.AppAnnotations(),
 		},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: &ingressClassName,
@@ -94,14 +92,8 @@ func (c *Client) CreateIngress(ctx context.Context, appName string, routes []mod
 // The service is expected to exist in the client's namespace.
 func (c *Client) CreateSystemIngress(ctx context.Context, name, domain string, servicePort int32) error {
 	pathType := networkingv1.PathTypePrefix
-	ingressClassName := "nginx"
+	ingressClassName := c.Gateway.IngressClass()
 	host := fmt.Sprintf("%s.%s", name, domain)
-
-	annotations := map[string]string{}
-	// Keycloak needs larger buffer for JWT headers
-	if name == keycloakName {
-		annotations["nginx.ingress.kubernetes.io/proxy-buffer-size"] = "128k"
-	}
 
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -112,7 +104,7 @@ func (c *Client) CreateSystemIngress(ctx context.Context, name, domain string, s
 				"app.kubernetes.io/managed-by": labelManagedBy,
 				"microfoundry.io/system":       "true",
 			},
-			Annotations: annotations,
+			Annotations: c.Gateway.SystemAnnotations(name),
 		},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: &ingressClassName,

@@ -527,6 +527,9 @@ func (c *Client) getAppRoutes(ctx context.Context, appName string) []models.Rout
 		return nil
 	}
 
+	// Determine protocol from TLS configuration on the Ingress
+	hasTLS := len(ingress.Spec.TLS) > 0
+
 	var routes []models.RouteDetail
 	for _, rule := range ingress.Spec.Rules {
 		host := rule.Host
@@ -538,6 +541,11 @@ func (c *Client) getAppRoutes(ctx context.Context, appName string) []models.Rout
 			domainPart = host[idx+1:]
 		}
 
+		protocol := "http"
+		if hasTLS {
+			protocol = "https"
+		}
+
 		if rule.HTTP != nil {
 			for _, path := range rule.HTTP.Paths {
 				routes = append(routes, models.RouteDetail{
@@ -545,7 +553,7 @@ func (c *Client) getAppRoutes(ctx context.Context, appName string) []models.Rout
 					Domain:   domainPart,
 					Path:     path.Path,
 					URL:      host + path.Path,
-					Protocol: "http",
+					Protocol: protocol,
 				})
 			}
 		}

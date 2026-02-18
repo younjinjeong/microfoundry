@@ -8,6 +8,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"maps"
 )
 
 const tlsSecretName = "mf-tls-wildcard"
@@ -52,12 +53,20 @@ func (c *Client) CreateIngress(ctx context.Context, appName string, routes []mod
 		})
 	}
 
+	// Build annotations: base app annotations + protocol-specific annotations
+	annotations := c.Gateway.AppAnnotations()
+	if proto := models.HasSpecialProtocol(routes); proto != "" {
+		if pa := c.Gateway.ProtocolAnnotations(proto); pa != nil {
+			maps.Copy(annotations, pa)
+		}
+	}
+
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        appName,
 			Namespace:   c.Namespace,
 			Labels:      appLabels(appName),
-			Annotations: c.Gateway.AppAnnotations(),
+			Annotations: annotations,
 		},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: &ingressClassName,

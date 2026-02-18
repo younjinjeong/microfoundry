@@ -13,6 +13,11 @@ type GatewayProvider interface {
 	// SystemAnnotations returns annotations for system-service ingresses (Keycloak, Grafana, etc.).
 	// serviceName identifies the service so providers can add service-specific annotations.
 	SystemAnnotations(serviceName string) map[string]string
+
+	// ProtocolAnnotations returns annotations required for a specific protocol.
+	// protocol is one of the models.Protocol* constants ("websocket", "grpc", "tcp").
+	// Returns nil for standard HTTP traffic.
+	ProtocolAnnotations(protocol string) map[string]string
 }
 
 // NewGatewayProvider creates the appropriate provider for the given ingress class.
@@ -50,6 +55,24 @@ func (p *nginxProvider) SystemAnnotations(serviceName string) map[string]string 
 	return ann
 }
 
+func (p *nginxProvider) ProtocolAnnotations(protocol string) map[string]string {
+	switch protocol {
+	case "websocket":
+		return map[string]string{
+			"nginx.ingress.kubernetes.io/proxy-read-timeout":  "3600",
+			"nginx.ingress.kubernetes.io/proxy-send-timeout":  "3600",
+			"nginx.ingress.kubernetes.io/proxy-http-version":  "1.1",
+			"nginx.ingress.kubernetes.io/connection-proxy-header": "upgrade",
+		}
+	case "grpc":
+		return map[string]string{
+			"nginx.ingress.kubernetes.io/backend-protocol": "GRPC",
+		}
+	default:
+		return nil
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Kong
 // ---------------------------------------------------------------------------
@@ -72,6 +95,22 @@ func (p *kongProvider) SystemAnnotations(serviceName string) map[string]string {
 	return ann
 }
 
+func (p *kongProvider) ProtocolAnnotations(protocol string) map[string]string {
+	switch protocol {
+	case "websocket":
+		return map[string]string{
+			"konghq.com/protocols":    "ws,wss",
+			"konghq.com/read-timeout": "3600000",
+		}
+	case "grpc":
+		return map[string]string{
+			"konghq.com/protocols": "grpc,grpcs",
+		}
+	default:
+		return nil
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Traefik
 // ---------------------------------------------------------------------------
@@ -91,4 +130,21 @@ func (p *traefikProvider) SystemAnnotations(serviceName string) map[string]strin
 		"traefik.ingress.kubernetes.io/router.entrypoints": "websecure,web",
 	}
 	return ann
+}
+
+func (p *traefikProvider) ProtocolAnnotations(protocol string) map[string]string {
+	switch protocol {
+	case "websocket":
+		// Traefik supports WebSocket natively; just ensure correct entrypoints.
+		return map[string]string{
+			"traefik.ingress.kubernetes.io/router.entrypoints": "websecure,web",
+		}
+	case "grpc":
+		return map[string]string{
+			"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
+			"traefik.ingress.kubernetes.io/service.serversscheme": "h2c",
+		}
+	default:
+		return nil
+	}
 }

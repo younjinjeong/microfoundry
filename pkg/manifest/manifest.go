@@ -37,7 +37,8 @@ type ManifestApp struct {
 }
 
 type ManifestRoute struct {
-	Route string `yaml:"route"`
+	Route    string `yaml:"route"`
+	Protocol string `yaml:"protocol,omitempty"` // "websocket", "grpc", or "" (HTTP default)
 }
 
 type ManifestDocker struct {
@@ -115,6 +116,7 @@ func (ma ManifestApp) ParseRoutes(domain string) []models.Route {
 		var routes []models.Route
 		for _, mr := range ma.Routes {
 			r := parseRouteString(mr.Route)
+			r.Protocol = normalizeProtocol(mr.Protocol)
 			routes = append(routes, r)
 		}
 		return routes
@@ -143,6 +145,20 @@ func parseRouteString(s string) models.Route {
 		r.Domain = "cf-local.dev"
 	}
 	return r
+}
+
+// normalizeProtocol maps user-friendly protocol names to internal constants.
+func normalizeProtocol(s string) string {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "websocket", "ws", "wss":
+		return "websocket"
+	case "grpc", "grpcs":
+		return "grpc"
+	case "tcp":
+		return "tcp"
+	default:
+		return "" // HTTP default
+	}
 }
 
 // ParseMemoryMB converts CF-style memory string to megabytes.

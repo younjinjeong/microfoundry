@@ -175,6 +175,16 @@ func (c *Client) DeployApp(ctx context.Context, app models.App, routes []models.
 		},
 	}
 
+	// Enable session affinity for WebSocket routes (sticky sessions)
+	if models.HasSpecialProtocol(routes) == "websocket" {
+		svc.Spec.SessionAffinity = corev1.ServiceAffinityClientIP
+		svc.Spec.SessionAffinityConfig = &corev1.SessionAffinityConfig{
+			ClientIP: &corev1.ClientIPConfig{
+				TimeoutSeconds: int32Ptr(10800), // 3 hours
+			},
+		}
+	}
+
 	existingSvc, err := c.Clientset.CoreV1().Services(c.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		_, err = c.Clientset.CoreV1().Services(c.Namespace).Create(ctx, svc, metav1.CreateOptions{})
@@ -527,13 +537,14 @@ func (c *Client) getAppRoutes(ctx context.Context, appName string) []models.Rout
 		return nil
 	}
 
-	// Determine protocol from TLS configuration on the Ingress
 	hasTLS := len(ingress.Spec.TLS) > 0
+
+	// Detect special protocol from ingress annotations
+	routeProtocol := detectProtocolFromAnnotations(ingress.Annotations)
 
 	var routes []models.RouteDetail
 	for _, rule := range ingress.Spec.Rules {
 		host := rule.Host
-		// Split host into subdomain.domain
 		hostPart := host
 		domainPart := ""
 		if idx := strings.Index(host, "."); idx > 0 {
@@ -541,10 +552,9 @@ func (c *Client) getAppRoutes(ctx context.Context, appName string) []models.Rout
 			domainPart = host[idx+1:]
 		}
 
-		protocol := "http"
-		if hasTLS {
-			protocol = "https"
-		}
+		// Use Route.Scheme() for protocol-aware URL scheme
+		r := models.Route{Protocol: routeProtocol}
+		scheme := r.Scheme(hasTLS)
 
 		if rule.HTTP != nil {
 			for _, path := range rule.HTTP.Paths {
@@ -552,14 +562,43 @@ func (c *Client) getAppRoutes(ctx context.Context, appName string) []models.Rout
 					Host:     hostPart,
 					Domain:   domainPart,
 					Path:     path.Path,
-					URL:      host + path.Path,
-					Protocol: protocol,
+					URL:      scheme + "://" + host + path.Path,
+					Protocol: scheme,
 				})
 			}
 		}
 	}
 
 	return routes
+}
+
+// detectProtocolFromAnnotations infers the route protocol from ingress annotations.
+func detectProtocolFromAnnotations(ann map[string]string) string {
+	if ann == nil {
+		return ""
+	}
+	// nginx: backend-protocol=GRPC
+	if v, ok := ann["nginx.ingress.kubernetes.io/backend-protocol"]; ok && strings.EqualFold(v, "GRPC") {
+		return "grpc"
+	}
+	// nginx: connection-proxy-header=upgrade (WebSocket)
+	if _, ok := ann["nginx.ingress.kubernetes.io/connection-proxy-header"]; ok {
+		return "websocket"
+	}
+	// kong: protocols contain ws or grpc
+	if v, ok := ann["konghq.com/protocols"]; ok {
+		if strings.Contains(v, "ws") {
+			return "websocket"
+		}
+		if strings.Contains(v, "grpc") {
+			return "grpc"
+		}
+	}
+	// traefik: serversscheme=h2c (gRPC)
+	if v, ok := ann["traefik.ingress.kubernetes.io/service.serversscheme"]; ok && v == "h2c" {
+		return "grpc"
+	}
+	return ""
 }
 
 // listAppSecrets returns metadata about K8s Secrets associated with an app.
@@ -598,3 +637,5 @@ func (c *Client) WaitForRollout(ctx context.Context, name string, timeout time.D
 	}
 	return fmt.Errorf("timeout waiting for %s rollout", name)
 }
+
+func int32Ptr(i int32) *int32 { return &i }

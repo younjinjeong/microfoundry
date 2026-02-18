@@ -19,6 +19,8 @@ type PageData struct {
 	User            *auth.UserSession // nil when auth is disabled or not logged in
 	AuthEnabled     bool
 	TooltipsEnabled bool
+	AdminDomain     string
+	TLSEnabled      bool
 }
 
 func (s *Server) pageData(title, active string) PageData {
@@ -29,6 +31,8 @@ func (s *Server) pageData(title, active string) PageData {
 		ActiveCluster:   s.clientManager.GetActive(),
 		AuthEnabled:     s.authEnabled(),
 		TooltipsEnabled: s.config.UI.Tooltips,
+		AdminDomain:     s.adminDomain,
+		TLSEnabled:      s.tlsEnabled,
 	}
 }
 

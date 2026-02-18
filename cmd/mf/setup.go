@@ -102,7 +102,7 @@ func setupKeycloakCmd() *cobra.Command {
 			fmt.Printf("    issuer_url: \"%s/realms/microfoundry\"\n", keycloakURL)
 			fmt.Println("    client_id: \"mf-admin\"")
 			fmt.Printf("    client_secret: \"%s\"\n", clientSecret)
-			fmt.Printf("    redirect_url: \"http://localhost:8080/auth/callback\"\n")
+			fmt.Printf("    redirect_url: \"https://admin.%s:8443/auth/callback\"\n", clusterCfg.Domain)
 
 			fmt.Printf("\nKeycloak Admin Console: %s/admin\n", keycloakURL)
 			fmt.Printf("Admin credentials: %s / %s\n", adminUser, adminPass)
@@ -158,7 +158,7 @@ func setupKeycloakRealmCmd() *cobra.Command {
 	cmd.Flags().StringVar(&adminUser, "admin-user", "admin", "Keycloak admin username")
 	cmd.Flags().StringVar(&adminPass, "admin-pass", "admin", "Keycloak admin password")
 	cmd.Flags().StringVar(&clientSecret, "client-secret", "", "OAuth2 client secret (auto-generated if empty)")
-	cmd.Flags().StringVar(&redirectURI, "redirect-uri", "http://localhost:8080/auth/callback", "OAuth2 redirect URI")
+	cmd.Flags().StringVar(&redirectURI, "redirect-uri", "https://admin.cf-local.dev:8443/auth/callback", "OAuth2 redirect URI")
 
 	return cmd
 }
@@ -287,7 +287,9 @@ Requires mkcert to be installed: https://github.com/FiloSottile/mkcert`,
 
 			// Step 7: Add hosts entries
 			fmt.Println("[7/8] Updating hosts file...")
+			adminDomain := fmt.Sprintf("admin.%s", domain)
 			systemHosts := []string{
+				adminDomain,
 				fmt.Sprintf("keycloak.%s", domain),
 				fmt.Sprintf("grafana.%s", domain),
 			}
@@ -313,16 +315,21 @@ Requires mkcert to be installed: https://github.com/FiloSottile/mkcert`,
 			fmt.Println()
 			fmt.Println("=== TLS Setup Complete ===")
 			fmt.Println()
-			fmt.Printf("  Keycloak:  https://keycloak.%s\n", domain)
-			fmt.Printf("  Grafana:   https://grafana.%s\n", domain)
+			fmt.Println("  Service URLs:")
+			fmt.Printf("    Admin:     https://%s:8443\n", adminDomain)
+			fmt.Printf("    Keycloak:  https://keycloak.%s\n", domain)
+			fmt.Printf("    Grafana:   https://grafana.%s\n", domain)
 			fmt.Println()
 			fmt.Println("All apps pushed with `mf push` will automatically get HTTPS routes.")
+			fmt.Println("The admin server will auto-detect TLS certificates on next startup.")
 			fmt.Println()
-			fmt.Println("To enable TLS on the admin server, run:")
-			fmt.Printf("  mf admin --tls-cert %s --tls-key %s\n", certPath, keyPath)
+			fmt.Println("Add to your mf.yaml:")
+			fmt.Println("  admin:")
+			fmt.Printf("    domain: \"%s\"\n", adminDomain)
+			fmt.Println("    tls: true")
+			fmt.Println("    tls_port: 8443")
 			fmt.Println()
-			fmt.Println("Add to your mf.yaml cluster config:")
-			fmt.Println("  tls: true")
+			fmt.Printf("  Start the admin:  mf admin\n")
 
 			return nil
 		},

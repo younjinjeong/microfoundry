@@ -33,6 +33,9 @@ type Server struct {
 	// TLS (empty when TLS disabled)
 	tlsCertFile string
 	tlsKeyFile  string
+	// Admin domain (e.g., "admin.cf-local.dev")
+	adminDomain string
+	tlsEnabled  bool
 }
 
 // ServerOption configures optional Server features.
@@ -80,6 +83,14 @@ func WithTLS(certFile, keyFile string) ServerOption {
 	return func(s *Server) {
 		s.tlsCertFile = certFile
 		s.tlsKeyFile = keyFile
+	}
+}
+
+// WithDomain sets the admin domain name for display in the UI.
+func WithDomain(domain string, tlsEnabled bool) ServerOption {
+	return func(s *Server) {
+		s.adminDomain = domain
+		s.tlsEnabled = tlsEnabled
 	}
 }
 

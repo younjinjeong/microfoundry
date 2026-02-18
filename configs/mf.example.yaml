@@ -28,8 +28,11 @@ kubernetes:
   # namespace: "microfoundry"
 
 admin:
-  port: 8080
-  host: "0.0.0.0"
+  port: 8080       # HTTP port (used when TLS is disabled, or for HTTP→HTTPS redirect)
+  host: "0.0.0.0"  # Bind address for the admin server
+  # domain: "admin.cf-local.dev"  # Admin UI domain (set automatically by `mf setup tls`)
+  # tls: true                     # Auto-enable TLS using ~/.mf/cert.pem
+  # tls_port: 8443                # HTTPS port (default: 8443; use 443 for clean URLs)
 
 # Admin UI feature toggles
 ui:
@@ -64,7 +67,7 @@ monitoring:
 #   issuer_url: "http://localhost:8180/realms/microfoundry"
 #   client_id: "mf-admin"
 #   client_secret: "your-client-secret"
-#   redirect_url: "http://localhost:8080/auth/callback"
+#   redirect_url: "https://admin.cf-local.dev:8443/auth/callback"
 #   session_key: ""  # 64-char hex string; auto-generated if empty
 #   # Keycloak Admin API (for user CRUD, SCIM, and IAM management)
 #   admin_base_url: "http://localhost:8180"

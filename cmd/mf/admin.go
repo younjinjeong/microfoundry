@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -91,9 +94,59 @@ func adminCmd() *cobra.Command {
 				opts = append(opts, admin.WithAuditLog(auditLog))
 			}
 
-			// TLS support
-			if tlsCert != "" && tlsKey != "" {
-				opts = append(opts, admin.WithTLS(tlsCert, tlsKey))
+			// Resolve TLS cert/key paths
+			// Priority: CLI flags → config file paths → auto-detect from ~/.mf/
+			certPath, keyPath := tlsCert, tlsKey
+			if certPath == "" && keyPath == "" && cfg.Admin.TLSCert != "" && cfg.Admin.TLSKey != "" {
+				certPath = cfg.Admin.TLSCert
+				keyPath = cfg.Admin.TLSKey
+			}
+			if certPath == "" && keyPath == "" && cfg.Admin.TLS {
+				// Auto-detect from ~/.mf/ directory
+				if home, err := os.UserHomeDir(); err == nil {
+					cp := filepath.Join(home, ".mf", "cert.pem")
+					kp := filepath.Join(home, ".mf", "key.pem")
+					if _, err := os.Stat(cp); err == nil {
+						if _, err := os.Stat(kp); err == nil {
+							certPath = cp
+							keyPath = kp
+						}
+					}
+				}
+			}
+
+			tlsEnabled := certPath != "" && keyPath != ""
+
+			if cfg.Admin.TLS && !tlsEnabled {
+				fmt.Println("Warning: admin.tls is true but certificates not found at ~/.mf/cert.pem")
+				fmt.Println("  Falling back to HTTP. Run 'mf setup tls' to generate certificates.")
+				fmt.Println()
+			}
+
+			if tlsEnabled {
+				opts = append(opts, admin.WithTLS(certPath, keyPath))
+			}
+
+			// Resolve listen port
+			// CLI flag overrides config; otherwise use tls_port for HTTPS, port for HTTP
+			listenPort := port
+			if !cmd.Flags().Changed("port") {
+				if tlsEnabled && cfg.Admin.TLSPort > 0 {
+					listenPort = cfg.Admin.TLSPort
+				} else if cfg.Admin.Port > 0 {
+					listenPort = cfg.Admin.Port
+				}
+			}
+
+			// Resolve listen host
+			listenHost := host
+			if !cmd.Flags().Changed("host") && cfg.Admin.Host != "" {
+				listenHost = cfg.Admin.Host
+			}
+
+			// Pass admin domain to server for template rendering
+			if cfg.Admin.Domain != "" {
+				opts = append(opts, admin.WithDomain(cfg.Admin.Domain, tlsEnabled))
 			}
 
 			srv := admin.NewServer(clientManager, cfg, version, opts...)
@@ -103,13 +156,52 @@ func adminCmd() *cobra.Command {
 			defer cancel()
 			go monitoring.StartCollector(ctx, srv.GetMetrics(), clientManager, 30*time.Second)
 
-			addr := fmt.Sprintf("%s:%d", host, port)
-			scheme := "http"
-			if tlsCert != "" && tlsKey != "" {
-				scheme = "https"
+			// Startup banner
+			fmt.Println()
+			fmt.Println("MicroFoundry Admin")
+			fmt.Println()
+			if tlsEnabled && cfg.Admin.Domain != "" {
+				adminURL := cfg.Admin.AdminURL()
+				fmt.Printf("  HTTPS  %s\n", adminURL)
+				fmt.Printf("  Cluster  %s\n", cfg.Kubernetes.Active)
+				fmt.Printf("  Domain   %s\n", cfg.Admin.Domain)
+				fmt.Printf("  TLS      %s (trusted by mkcert)\n", certPath)
+			} else if tlsEnabled {
+				fmt.Printf("  HTTPS  https://localhost:%d\n", listenPort)
+				fmt.Printf("  Cluster  %s\n", cfg.Kubernetes.Active)
+				fmt.Printf("  TLS      %s\n", certPath)
+			} else {
+				fmt.Printf("  HTTP   http://localhost:%d\n", listenPort)
+				fmt.Printf("  Cluster  %s\n", cfg.Kubernetes.Active)
+				if cfg.Admin.Domain == "" {
+					fmt.Println()
+					fmt.Println("  TIP: Run 'mf setup tls' to enable HTTPS with a custom domain")
+				}
 			}
-			fmt.Printf("MicroFoundry Admin starting at %s://localhost:%d\n", scheme, port)
-			fmt.Printf("Active cluster: %s\n", cfg.Kubernetes.Active)
+			fmt.Println()
+
+			// Start HTTP redirect server when TLS is enabled
+			if tlsEnabled {
+				httpPort := cfg.Admin.Port
+				if httpPort == 0 {
+					httpPort = 8080
+				}
+				redirectURL := cfg.Admin.AdminURL()
+				go func() {
+					redirectMux := http.NewServeMux()
+					redirectMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+						target := redirectURL + r.URL.Path
+						if r.URL.RawQuery != "" {
+							target += "?" + r.URL.RawQuery
+						}
+						http.Redirect(w, r, target, http.StatusMovedPermanently)
+					})
+					httpAddr := fmt.Sprintf("%s:%d", listenHost, httpPort)
+					_ = http.ListenAndServe(httpAddr, redirectMux)
+				}()
+			}
+
+			addr := fmt.Sprintf("%s:%d", listenHost, listenPort)
 			return srv.ListenAndServe(addr)
 		},
 	}

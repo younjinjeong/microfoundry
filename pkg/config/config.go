@@ -13,11 +13,23 @@ import (
 type Config struct {
 	GitHub     GitHubConfig     `mapstructure:"github"`
 	Kubernetes KubernetesConfig `mapstructure:"kubernetes"`
+	Admin      AdminConfig      `mapstructure:"admin"`
 	Monitoring MonitoringConfig `mapstructure:"monitoring"`
 	Registry   RegistryConfig   `mapstructure:"registry"`
 	SMTP       SMTPConfig       `mapstructure:"smtp"`
 	Auth       AuthConfig       `mapstructure:"auth"`
 	UI         UIConfig         `mapstructure:"ui"`
+}
+
+// AdminConfig holds admin UI server settings.
+type AdminConfig struct {
+	Port    int    `mapstructure:"port"`
+	Host    string `mapstructure:"host"`
+	Domain  string `mapstructure:"domain"`
+	TLS     bool   `mapstructure:"tls"`
+	TLSPort int    `mapstructure:"tls_port"`
+	TLSCert string `mapstructure:"tls_cert"`
+	TLSKey  string `mapstructure:"tls_key"`
 }
 
 // UIConfig holds admin UI feature toggles.
@@ -176,6 +188,11 @@ func Load() (*Config, error) {
 	v.SetDefault("monitoring.prometheus_url", "http://kube-prometheus-kube-prome-prometheus.monitoring.svc.cluster.local:9090")
 	v.SetDefault("monitoring.beyla_enabled", true)
 	v.SetDefault("ui.tooltips", true)
+	v.SetDefault("admin.port", 8080)
+	v.SetDefault("admin.host", "0.0.0.0")
+	v.SetDefault("admin.domain", "")
+	v.SetDefault("admin.tls", false)
+	v.SetDefault("admin.tls_port", 8443)
 
 	// Read config file (optional — not an error if missing)
 	if err := v.ReadInConfig(); err != nil {
@@ -193,6 +210,35 @@ func Load() (*Config, error) {
 	cfg.Kubernetes.Migrate()
 
 	return &cfg, nil
+}
+
+// AdminURL returns the base URL for the admin UI (e.g., "https://admin.cf-local.dev:8443").
+func (a *AdminConfig) AdminURL() string {
+	if a.TLS && a.Domain != "" {
+		port := a.TLSPort
+		if port == 0 {
+			port = 8443
+		}
+		if port == 443 {
+			return fmt.Sprintf("https://%s", a.Domain)
+		}
+		return fmt.Sprintf("https://%s:%d", a.Domain, port)
+	}
+	port := a.Port
+	if port == 0 {
+		port = 8080
+	}
+	if a.Domain != "" && !a.TLS {
+		// Domain set but no TLS — still show domain (HTTP)
+		if port == 80 {
+			return fmt.Sprintf("http://%s", a.Domain)
+		}
+		return fmt.Sprintf("http://%s:%d", a.Domain, port)
+	}
+	if port == 80 {
+		return "http://localhost"
+	}
+	return fmt.Sprintf("http://localhost:%d", port)
 }
 
 // ConfigDir returns the path to the user's mf config directory.

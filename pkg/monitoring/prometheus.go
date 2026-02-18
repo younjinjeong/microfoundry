@@ -150,6 +150,30 @@ func (p *PrometheusClient) instantQuery(ctx context.Context, query string) (floa
 	return strconv.ParseFloat(valStr, 64)
 }
 
+// HealthCheck verifies that Prometheus is reachable.
+func (p *PrometheusClient) HealthCheck(ctx context.Context) error {
+	u, err := url.Parse(p.BaseURL)
+	if err != nil {
+		return fmt.Errorf("invalid prometheus URL: %w", err)
+	}
+	u.Path = "/-/healthy"
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("prometheus unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("prometheus returned %s", resp.Status)
+	}
+	return nil
+}
+
 // NewPrometheusClient creates a Prometheus query client.
 func NewPrometheusClient(baseURL string) *PrometheusClient {
 	return &PrometheusClient{

@@ -76,6 +76,30 @@ func (l *LokiClient) queryRange(ctx context.Context, query string, start, end ti
 	return parseLokiStreams(lokiResp), nil
 }
 
+// HealthCheck verifies that Loki is reachable.
+func (l *LokiClient) HealthCheck(ctx context.Context) error {
+	u, err := url.Parse(l.BaseURL)
+	if err != nil {
+		return fmt.Errorf("invalid loki URL: %w", err)
+	}
+	u.Path = "/ready"
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("loki unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("loki returned %s", resp.Status)
+	}
+	return nil
+}
+
 type lokiQueryResponse struct {
 	Status string `json:"status"`
 	Data   struct {

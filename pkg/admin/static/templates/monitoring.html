@@ -9,7 +9,7 @@
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-2xl font-bold text-gray-900">Metrics & Alerts</h2>
-            <p class="text-sm text-gray-500 mt-1">Application metrics, cluster resources, and alert management</p>
+            <p class="text-sm text-gray-500 mt-1">Cluster monitoring, application metrics, and alert management</p>
         </div>
         <a href="{{index $c "GrafanaBaseURL"}}" target="_blank"
            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700"
@@ -19,6 +19,60 @@
             </svg>
             Open Grafana
         </a>
+    </div>
+
+    <!-- Monitoring Stack Connectivity -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wider">Monitoring Stack</h3>
+                {{if index $c "AllConnected"}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    All connected
+                </span>
+                {{else}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    Connectivity issues
+                </span>
+                {{end}}
+            </div>
+            <span class="text-xs text-gray-400">Checked on page load</span>
+        </div>
+        <div class="p-4">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {{range index $c "Components"}}
+                <div class="flex items-center space-x-3 p-3 rounded-lg {{if .Connected}}bg-green-50 border border-green-200{{else}}bg-red-50 border border-red-200{{end}}">
+                    {{if .Connected}}
+                    <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    {{else}}
+                    <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    {{end}}
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium {{if .Connected}}text-green-800{{else}}text-red-800{{end}}">{{.Name}}</p>
+                        <p class="text-xs {{if .Connected}}text-green-600{{else}}text-red-600{{end}} truncate" title="{{.URL}}">
+                            {{if .Connected}}Connected{{else}}{{.Error}}{{end}}
+                        </p>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+
+            {{if not (index $c "AllConnected")}}
+            <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p class="text-sm text-amber-800">
+                    <strong>Setup required:</strong> Deploy the monitoring stack with
+                    <code class="bg-amber-100 px-1 rounded">deploy/monitoring/install.sh</code>
+                    to enable metrics, dashboards, and alerts. See the
+                    <a href="/config" class="text-amber-900 underline font-medium">Platform Config</a>
+                    page for monitoring URLs.
+                </p>
+            </div>
+            {{end}}
+        </div>
     </div>
 
     <!-- Active Alerts -->

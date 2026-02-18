@@ -77,6 +77,30 @@ type amAlert struct {
 	} `json:"status"`
 }
 
+// HealthCheck verifies that Alertmanager is reachable.
+func (a *AlertmanagerClient) HealthCheck(ctx context.Context) error {
+	u, err := url.Parse(a.BaseURL)
+	if err != nil {
+		return fmt.Errorf("invalid alertmanager URL: %w", err)
+	}
+	u.Path = "/-/healthy"
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("alertmanager unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("alertmanager returned %s", resp.Status)
+	}
+	return nil
+}
+
 func convertAlerts(amAlerts []amAlert) []Alert {
 	alerts := make([]Alert, 0, len(amAlerts))
 	for _, a := range amAlerts {

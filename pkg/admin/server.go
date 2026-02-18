@@ -263,6 +263,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/topologies/{type}/{plan}", s.APITopologyDetailHandler)
 	s.mux.HandleFunc("PUT /api/topologies/{type}/{plan}", s.APISaveTopologyHandler)
 	s.mux.HandleFunc("GET /api/monitoring/alerts", s.APIAlertsHandler)
+	s.mux.HandleFunc("GET /api/monitoring/health", s.APIMonitoringHealthHandler)
 
 	// Beyla RED metrics API routes
 	s.mux.HandleFunc("GET /api/apps/{name}/red-metrics", s.APIAppREDMetricsHandler)

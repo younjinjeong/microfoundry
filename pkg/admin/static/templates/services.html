@@ -3,20 +3,32 @@
 {{end}}
 
 {{define "content"}}
+{{with .Content}}
 <div class="flex justify-between items-center mb-6">
     <div>
         <h2 class="text-lg font-semibold text-gray-900">Provisioned Services</h2>
         <p class="text-sm text-gray-500">Backing services bound to your applications</p>
     </div>
-    <a href="/catalog" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium" data-tooltip="Provision a new backing service from the catalog">
+    {{if .Catalog}}
+    <button onclick="document.getElementById('create-svc-modal').classList.remove('hidden')"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+            data-tooltip="Provision a new backing service from the catalog">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Create Service
+    </button>
+    {{else}}
+    <a href="/catalog" class="inline-flex items-center px-4 py-2 bg-gray-400 text-white rounded-md text-sm font-medium cursor-not-allowed"
+       data-tooltip="No visible plans — enable plans in the Service Catalog first">
         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
         Create Service
     </a>
+    {{end}}
 </div>
 
-{{with .Content}}
 {{if .Services}}
 <div class="bg-white rounded-lg shadow overflow-hidden">
     <table class="min-w-full divide-y divide-gray-200">
@@ -66,14 +78,177 @@
     </svg>
     <h3 class="text-xl font-bold text-gray-900 mt-2">No Services Provisioned</h3>
     <p class="text-gray-500 mt-2 max-w-md mx-auto">
-        You haven't created any backing services yet. Browse the service catalog to provision databases, caches, message queues, and more.
+        {{if .Catalog}}
+        Create your first backing service from the available catalog plans.
+        {{else}}
+        No service plans are visible yet. An admin must enable plans in the <a href="/catalog" class="text-blue-600 hover:text-blue-800 font-medium">Service Catalog</a> first.
+        {{end}}
     </p>
+    {{if .Catalog}}
     <div class="mt-6">
-        <a href="/catalog" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium" data-tooltip="Open the service catalog to provision a new service">
-            Browse Catalog
-        </a>
+        <button onclick="document.getElementById('create-svc-modal').classList.remove('hidden')"
+                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+                data-tooltip="Provision a new backing service">
+            Create Service
+        </button>
+    </div>
+    {{end}}
+</div>
+{{end}}
+
+<!-- Create Service Modal -->
+{{if .Catalog}}
+<div id="create-svc-modal" class="hidden fixed inset-0 z-40 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+             onclick="document.getElementById('create-svc-modal').classList.add('hidden')"></div>
+
+        <!-- Modal -->
+        <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full z-50">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Create Backing Service</h3>
+                <button onclick="document.getElementById('create-svc-modal').classList.add('hidden')"
+                        class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form hx-post="/services/create" hx-swap="none" class="p-6 space-y-5">
+                <!-- Service Type -->
+                <div>
+                    <label for="svc-type" class="block text-sm font-medium text-gray-700 mb-1">Service Type</label>
+                    <select id="svc-type" name="service_type" required
+                            onchange="updatePlans()"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 border">
+                        <option value="">Select a service...</option>
+                        {{range .Catalog}}
+                        <option value="{{.ID}}">{{.Name}} — {{.Description}}</option>
+                        {{end}}
+                    </select>
+                </div>
+
+                <!-- Plan -->
+                <div>
+                    <label for="svc-plan" class="block text-sm font-medium text-gray-700 mb-1">Plan</label>
+                    <select id="svc-plan" name="plan" required disabled
+                            onchange="updatePlanInfo()"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 border">
+                        <option value="">Select a service type first</option>
+                    </select>
+                    <div id="plan-info" class="mt-2 hidden">
+                        <div class="text-xs text-gray-500 flex items-center gap-3">
+                            <span id="plan-resources"></span>
+                            <span id="plan-cost" class="text-green-600"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instance Name -->
+                <div>
+                    <label for="svc-name" class="block text-sm font-medium text-gray-700 mb-1">Instance Name</label>
+                    <input id="svc-name" name="name" type="text" required
+                           pattern="[a-z][a-z0-9-]{0,40}[a-z0-9]" minlength="2" maxlength="42"
+                           placeholder="my-mariadb"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm px-3 py-2 border font-mono">
+                    <p class="mt-1 text-xs text-gray-400">Lowercase letters, numbers, hyphens. 2-42 characters.</p>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button"
+                            onclick="document.getElementById('create-svc-modal').classList.add('hidden')"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" id="svc-submit-btn"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        Create Service
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+
+<script>
+// Catalog data embedded from server
+const catalogData = {
+    {{range .Catalog}}
+    "{{.ID}}": {
+        name: "{{.Name}}",
+        plans: [
+            {{range .Plans}}
+            {id: "{{.ID}}", name: "{{.Name}}", desc: "{{.Description}}",
+             mem: {{.Resources.MemoryMB}}, cpu: {{.Resources.CPUMillis}}, storage: {{.Resources.StorageGB}},
+             cost: "{{.CostEstimate}}"},
+            {{end}}
+        ]
+    },
+    {{end}}
+};
+
+function updatePlans() {
+    const typeSelect = document.getElementById('svc-type');
+    const planSelect = document.getElementById('svc-plan');
+    const planInfo = document.getElementById('plan-info');
+    const svcType = typeSelect.value;
+
+    planInfo.classList.add('hidden');
+    planSelect.innerHTML = '';
+
+    if (!svcType || !catalogData[svcType]) {
+        planSelect.innerHTML = '<option value="">Select a service type first</option>';
+        planSelect.disabled = true;
+        return;
+    }
+
+    const plans = catalogData[svcType].plans;
+    planSelect.innerHTML = '<option value="">Select a plan...</option>';
+    plans.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        planSelect.appendChild(opt);
+    });
+    planSelect.disabled = false;
+
+    // Auto-suggest instance name
+    const nameInput = document.getElementById('svc-name');
+    if (!nameInput.value) {
+        nameInput.value = 'my-' + svcType;
+    }
+}
+
+function updatePlanInfo() {
+    const svcType = document.getElementById('svc-type').value;
+    const planID = document.getElementById('svc-plan').value;
+    const planInfo = document.getElementById('plan-info');
+    const planResources = document.getElementById('plan-resources');
+    const planCost = document.getElementById('plan-cost');
+
+    if (!svcType || !planID || !catalogData[svcType]) {
+        planInfo.classList.add('hidden');
+        return;
+    }
+
+    const plan = catalogData[svcType].plans.find(p => p.id === planID);
+    if (!plan) {
+        planInfo.classList.add('hidden');
+        return;
+    }
+
+    let res = plan.cpu + 'm CPU, ' + plan.mem + 'Mi Memory';
+    if (plan.storage > 0) {
+        res += ', ' + plan.storage + 'Gi Storage';
+    }
+    planResources.textContent = res;
+    planCost.textContent = plan.cost;
+    planInfo.classList.remove('hidden');
+}
+</script>
 {{end}}
 {{end}}
 {{end}}

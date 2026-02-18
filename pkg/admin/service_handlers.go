@@ -44,9 +44,18 @@ func (s *Server) ServicesListHandler(w http.ResponseWriter, r *http.Request) {
 		items = []models.ServiceListItem{}
 	}
 
+	// Load visible catalog for the creation form
+	visStore := service.NewPlanVisibilityStore(client)
+	catalog, err := visStore.VisibleCatalog(ctx)
+	if err != nil {
+		log.Printf("error loading visible catalog: %v", err)
+		catalog = []models.ServiceType{}
+	}
+
 	data := s.pageData("Backing Services", "services")
 	data.Content = map[string]any{
 		"Services": items,
+		"Catalog":  catalog,
 	}
 	s.templates.Render(w, "services.html", data)
 }

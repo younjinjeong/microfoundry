@@ -18,6 +18,9 @@ type GatewayProvider interface {
 	// protocol is one of the models.Protocol* constants ("websocket", "grpc", "tcp").
 	// Returns nil for standard HTTP traffic.
 	ProtocolAnnotations(protocol string) map[string]string
+
+	// Capabilities returns the list of supported protocols for this gateway.
+	Capabilities() []string
 }
 
 // NewGatewayProvider creates the appropriate provider for the given ingress class.
@@ -53,6 +56,10 @@ func (p *nginxProvider) SystemAnnotations(serviceName string) map[string]string 
 		ann["nginx.ingress.kubernetes.io/proxy-buffer-size"] = "128k"
 	}
 	return ann
+}
+
+func (p *nginxProvider) Capabilities() []string {
+	return []string{"HTTP/1.1", "HTTP/2", "WebSocket", "gRPC"}
 }
 
 func (p *nginxProvider) ProtocolAnnotations(protocol string) map[string]string {
@@ -95,6 +102,10 @@ func (p *kongProvider) SystemAnnotations(serviceName string) map[string]string {
 	return ann
 }
 
+func (p *kongProvider) Capabilities() []string {
+	return []string{"HTTP/1.1", "HTTP/2", "WebSocket", "gRPC"}
+}
+
 func (p *kongProvider) ProtocolAnnotations(protocol string) map[string]string {
 	switch protocol {
 	case "websocket":
@@ -130,6 +141,10 @@ func (p *traefikProvider) SystemAnnotations(serviceName string) map[string]strin
 		"traefik.ingress.kubernetes.io/router.entrypoints": "websecure,web",
 	}
 	return ann
+}
+
+func (p *traefikProvider) Capabilities() []string {
+	return []string{"HTTP/1.1", "HTTP/2", "WebSocket", "gRPC", "HTTP/3"}
 }
 
 func (p *traefikProvider) ProtocolAnnotations(protocol string) map[string]string {

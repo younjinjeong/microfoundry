@@ -89,13 +89,14 @@ func (s *Server) AddClusterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := config.ClusterConfig{
-		Name:      id,
-		Provider:  provider,
-		Context:   r.FormValue("context"),
-		Namespace: r.FormValue("namespace"),
-		Domain:    r.FormValue("domain"),
-		Region:    r.FormValue("region"),
-		Enabled:   true,
+		Name:         id,
+		Provider:     provider,
+		Context:      r.FormValue("context"),
+		Namespace:    r.FormValue("namespace"),
+		Domain:       r.FormValue("domain"),
+		Region:       r.FormValue("region"),
+		IngressClass: r.FormValue("ingress_class"),
+		Enabled:      true,
 	}
 
 	if err := s.clientManager.AddCluster(id, cfg); err != nil {

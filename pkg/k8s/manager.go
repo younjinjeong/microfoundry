@@ -49,7 +49,8 @@ func (cm *ClientManager) GetClient(clusterID string) (*Client, error) {
 		return nil, fmt.Errorf("cluster %q not found", clusterID)
 	}
 
-	client, err := NewClient(cfg.Context, cfg.Namespace, cfg.Domain)
+	client, err := NewClient(cfg.Context, cfg.Namespace, cfg.Domain,
+		WithIngressClass(cfg.IngressClass))
 	if err != nil {
 		return nil, fmt.Errorf("connecting to cluster %q: %w", clusterID, err)
 	}
@@ -97,17 +98,20 @@ func (cm *ClientManager) ListClusters(ctx context.Context) []models.ClusterInfo 
 
 	var infos []models.ClusterInfo
 	for id, cfg := range configs {
+		gw := NewGatewayProvider(cfg.IngressClass)
 		info := models.ClusterInfo{
-			ID:        id,
-			Name:      cfg.Name,
-			Provider:  cfg.Provider,
-			Region:    cfg.Region,
-			Context:   cfg.Context,
-			Namespace: cfg.Namespace,
-			Domain:    cfg.Domain,
-			Enabled:   cfg.Enabled,
-			IsActive:  id == active,
-			Status:    "disconnected",
+			ID:           id,
+			Name:         cfg.Name,
+			Provider:     cfg.Provider,
+			Region:       cfg.Region,
+			Context:      cfg.Context,
+			Namespace:    cfg.Namespace,
+			Domain:       cfg.Domain,
+			Enabled:      cfg.Enabled,
+			IsActive:     id == active,
+			Status:       "disconnected",
+			IngressClass: gw.IngressClass(),
+			Capabilities: gw.Capabilities(),
 		}
 
 		// GetClient has its own proper locking for lazy initialization
@@ -148,18 +152,21 @@ func (cm *ClientManager) GetClusterDetail(ctx context.Context, clusterID string)
 		return nil, err
 	}
 
+	gw := NewGatewayProvider(cfg.IngressClass)
 	detail := &models.ClusterDetail{
 		ClusterInfo: models.ClusterInfo{
-			ID:        clusterID,
-			Name:      cfg.Name,
-			Provider:  cfg.Provider,
-			Region:    cfg.Region,
-			Context:   cfg.Context,
-			Namespace: cfg.Namespace,
-			Domain:    cfg.Domain,
-			Enabled:   cfg.Enabled,
-			IsActive:  isActive,
-			Status:    "connected",
+			ID:           clusterID,
+			Name:         cfg.Name,
+			Provider:     cfg.Provider,
+			Region:       cfg.Region,
+			Context:      cfg.Context,
+			Namespace:    cfg.Namespace,
+			Domain:       cfg.Domain,
+			Enabled:      cfg.Enabled,
+			IsActive:     isActive,
+			Status:       "connected",
+			IngressClass: gw.IngressClass(),
+			Capabilities: gw.Capabilities(),
 		},
 	}
 

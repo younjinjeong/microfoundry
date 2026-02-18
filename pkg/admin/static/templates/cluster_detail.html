@@ -79,6 +79,24 @@
                         <dd class="mt-1 text-sm text-gray-900">{{$d.Region}}</dd>
                     </div>
                     {{end}}
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Gateway</dt>
+                        <dd class="mt-1 text-sm">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{if eq $d.IngressClass "traefik"}}bg-green-100 text-green-800{{else if eq $d.IngressClass "kong"}}bg-blue-100 text-blue-800{{else}}bg-gray-100 text-gray-800{{end}}">
+                                {{$d.IngressClass}}
+                            </span>
+                        </dd>
+                    </div>
+                    <div class="col-span-2">
+                        <dt class="text-sm font-medium text-gray-500">Protocols</dt>
+                        <dd class="mt-1 flex flex-wrap gap-1">
+                            {{range $d.Capabilities}}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{if eq . "HTTP/3"}}bg-green-100 text-green-700 ring-1 ring-green-500{{else}}bg-gray-100 text-gray-700{{end}}">
+                                {{.}}
+                            </span>
+                            {{end}}
+                        </dd>
+                    </div>
                 </dl>
             </div>
         </div>
@@ -130,6 +148,36 @@
             </div>
         </div>
     </div>
+
+    {{if eq $d.IngressClass "nginx"}}
+    <!-- Nginx Retirement Warning -->
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div class="flex items-start">
+            <svg class="w-5 h-5 mr-3 mt-0.5 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <div class="text-sm text-amber-800">
+                <p class="font-medium">Community ingress-nginx is being retired (March 2026)</p>
+                <p class="mt-1">No new features, bug fixes, or security patches after the retirement date. Consider migrating to <strong>Traefik</strong> (with HTTP/3 support) or <strong>F5 NGINX Ingress Controller</strong> for continued support.</p>
+            </div>
+        </div>
+    </div>
+    {{end}}
+
+    {{if eq $d.IngressClass "traefik"}}
+    <!-- HTTP/3 Available Banner -->
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div class="flex items-start">
+            <svg class="w-5 h-5 mr-3 mt-0.5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <div class="text-sm text-green-800">
+                <p class="font-medium">HTTP/3 (QUIC) available with Traefik v3+</p>
+                <p class="mt-1">Enable HTTP/3 on the <code class="bg-green-100 px-1 rounded">websecure</code> entrypoint with <code class="bg-green-100 px-1 rounded">http3: {}</code>. Requires TLS enabled and UDP port 443 exposed on the Traefik Service. All apps on this cluster will benefit automatically.</p>
+            </div>
+        </div>
+    </div>
+    {{end}}
 
     <!-- Nodes Table -->
     <div class="bg-white rounded-lg shadow">

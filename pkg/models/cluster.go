@@ -10,20 +10,22 @@ const (
 
 // ClusterInfo is the runtime view of a registered cluster.
 type ClusterInfo struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Provider  string `json:"provider"`
-	Region    string `json:"region,omitempty"`
-	Context   string `json:"context"`
-	Namespace string `json:"namespace"`
-	Domain    string `json:"domain"`
-	Status    string `json:"status"` // connected, disconnected, error
-	Enabled   bool   `json:"enabled"`
-	IsActive  bool   `json:"is_active"`
-	NodeCount int    `json:"node_count"`
-	AppCount  int    `json:"app_count"`
-	Version   string `json:"version,omitempty"`
-	StatusMsg string `json:"status_message,omitempty"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Provider     string   `json:"provider"`
+	Region       string   `json:"region,omitempty"`
+	Context      string   `json:"context"`
+	Namespace    string   `json:"namespace"`
+	Domain       string   `json:"domain"`
+	Status       string   `json:"status"` // connected, disconnected, error
+	Enabled      bool     `json:"enabled"`
+	IsActive     bool     `json:"is_active"`
+	NodeCount    int      `json:"node_count"`
+	AppCount     int      `json:"app_count"`
+	Version      string   `json:"version,omitempty"`
+	StatusMsg    string   `json:"status_message,omitempty"`
+	IngressClass string   `json:"ingress_class,omitempty"`
+	Capabilities []string `json:"capabilities,omitempty"`
 }
 
 // ClusterDetail extends ClusterInfo with node and resource data.

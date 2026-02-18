@@ -27,7 +27,8 @@
         {{if eq (len $inst.Bindings) 0}}
         <button hx-delete="/services/{{$inst.Name}}"
                 hx-confirm="Delete service '{{$inst.Name}}'? This will deprovision K8s resources."
-                class="inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 rounded-md hover:bg-red-50 text-sm font-medium">
+                class="inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 rounded-md hover:bg-red-50 text-sm font-medium"
+                data-tooltip="Delete this service instance" data-tooltip-pos="top">
             Delete
         </button>
         {{end}}
@@ -95,7 +96,7 @@
         <div class="bg-white rounded-lg shadow">
             <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide">Connection Details</h3>
-                <a href="/secrets/{{$inst.Name}}" class="text-sm text-blue-600 hover:text-blue-800 font-medium">View in Secrets Manager &rarr;</a>
+                <a href="/secrets/{{$inst.Name}}" class="text-sm text-blue-600 hover:text-blue-800 font-medium" data-tooltip="View service credentials in the Secrets Manager">View in Secrets Manager &rarr;</a>
             </div>
             <div class="px-6 py-4">
                 <dl class="space-y-3">
@@ -181,7 +182,8 @@
                             <button hx-post="/services/{{$inst.Name}}/unbind"
                                     hx-include="closest form"
                                     hx-confirm="Unbind '{{.AppName}}' from '{{$inst.Name}}'?"
-                                    class="text-xs text-red-600 hover:text-red-800 font-medium">Unbind</button>
+                                    class="text-xs text-red-600 hover:text-red-800 font-medium"
+                                    data-tooltip="Remove this app's binding to the service" data-tooltip-pos="top">Unbind</button>
                         </form>
                     </li>
                     {{end}}

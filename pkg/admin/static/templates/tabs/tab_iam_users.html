@@ -20,9 +20,10 @@
         <form hx-get="/users/tab/users" hx-target="#tab-content" class="flex items-center space-x-2">
             <input type="text" name="search" value="{{.Search}}" placeholder="Search users..."
                    class="rounded-md border-gray-300 shadow-sm text-sm p-2 border focus:ring-blue-500 focus:border-blue-500 w-64">
-            <button type="submit" class="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 border">Search</button>
+            <button type="submit" data-tooltip="Search users by name or email" class="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 border">Search</button>
         </form>
         <button onclick="document.getElementById('create-user-form').classList.toggle('hidden')"
+                data-tooltip="Create a new Keycloak user account"
                 class="px-3 py-1.5 bg-gray-900 text-white text-sm rounded-md hover:bg-gray-800">+ New User</button>
     </div>
 
@@ -57,7 +58,7 @@
                        placeholder="Leave empty to require user to set password">
             </div>
             <div class="col-span-2 flex space-x-2">
-                <button type="submit" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">Create User</button>
+                <button type="submit" data-tooltip="Create the user in Keycloak" data-tooltip-pos="top" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">Create User</button>
                 <button type="button" onclick="document.getElementById('create-user-form').classList.add('hidden')"
                         class="px-4 py-2 bg-white text-gray-700 text-sm rounded-md border hover:bg-gray-50">Cancel</button>
             </div>
@@ -116,11 +117,13 @@
                     <td class="px-4 py-3 text-right space-x-1">
                         <button hx-post="/users/keycloak/{{.ID}}/toggle"
                                 hx-confirm="{{if .Enabled}}Disable{{else}}Enable{{end}} user '{{.Username}}'?"
+                                data-tooltip="Toggle user account active status" data-tooltip-pos="top"
                                 class="text-xs {{if .Enabled}}text-yellow-600 hover:text-yellow-800{{else}}text-green-600 hover:text-green-800{{end}}">
                             {{if .Enabled}}Disable{{else}}Enable{{end}}
                         </button>
                         <button hx-delete="/users/keycloak/{{.ID}}"
                                 hx-confirm="Delete user '{{.Username}}'? This cannot be undone."
+                                data-tooltip="Permanently delete this user from Keycloak" data-tooltip-pos="top"
                                 class="text-xs text-red-600 hover:text-red-800">Delete</button>
                     </td>
                 </tr>

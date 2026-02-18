@@ -50,6 +50,7 @@
             <h4 class="text-sm font-medium text-gray-700">Historical Logs (Loki)</h4>
             <div class="flex items-center space-x-2">
                 <select id="log-duration"
+                        data-tooltip="Select time window for historical log query"
                         class="text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                     <option value="15m">Last 15 minutes</option>
                     <option value="1h" selected>Last 1 hour</option>
@@ -61,6 +62,7 @@
                         hx-include="#log-duration"
                         hx-params="duration"
                         hx-indicator="#log-history-spinner"
+                        data-tooltip="Fetch historical logs from Loki for selected time range"
                         class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
                     Query
                 </button>
@@ -81,6 +83,7 @@
         <p class="text-sm text-gray-500">Live log stream from all instances</p>
         <button id="log-toggle"
                 onclick="toggleLogs('{{index . "Name"}}')"
+                data-tooltip="Toggle live log streaming via SSE"
                 class="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
             Start Streaming
         </button>

@@ -9,7 +9,8 @@
         <h3 class="text-lg font-medium text-gray-900">Kubernetes Clusters</h3>
         <div class="flex items-center space-x-3">
             <button onclick="document.getElementById('add-cluster-form').classList.toggle('hidden')"
-                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">
+                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                    data-tooltip="Register a new Kubernetes cluster">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -67,12 +68,14 @@
             </div>
             <div class="flex items-center space-x-3 pt-2">
                 <button type="submit"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">
+                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                        data-tooltip="Save and register this cluster configuration" data-tooltip-pos="top">
                     Register Cluster
                 </button>
                 <button type="button"
                         onclick="document.getElementById('add-cluster-form').classList.add('hidden')"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors">
+                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors"
+                        data-tooltip="Cancel cluster registration" data-tooltip-pos="top">
                     Cancel
                 </button>
             </div>
@@ -141,14 +144,16 @@
                         {{if not .IsActive}}
                         <button hx-post="/clusters/{{.ID}}/activate"
                                 hx-swap="none"
-                                class="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors">
+                                class="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors"
+                                data-tooltip="Make this the active cluster for deployments" data-tooltip-pos="top">
                             Set Active
                         </button>
                         <button hx-delete="/clusters/{{.ID}}"
                                 hx-confirm="Are you sure you want to remove cluster '{{.Name}}'?"
                                 hx-target="closest tr"
                                 hx-swap="outerHTML"
-                                class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors">
+                                class="inline-flex items-center px-3 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md transition-colors"
+                                data-tooltip="Unregister this cluster from MicroFoundry" data-tooltip-pos="top">
                             Remove
                         </button>
                         {{else}}

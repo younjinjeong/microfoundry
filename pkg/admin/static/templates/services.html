@@ -8,7 +8,7 @@
         <h2 class="text-lg font-semibold text-gray-900">Provisioned Services</h2>
         <p class="text-sm text-gray-500">Backing services bound to your applications</p>
     </div>
-    <a href="/catalog" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+    <a href="/catalog" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium" data-tooltip="Provision a new backing service from the catalog">
         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
@@ -51,7 +51,8 @@
                             hx-target="#svc-row-{{.Name}}"
                             hx-swap="outerHTML swap:0.3s"
                             hx-confirm="Delete service '{{.Name}}'? This will deprovision the K8s resources."
-                            class="text-red-600 hover:text-red-800 text-sm font-medium">Delete</button>
+                            class="text-red-600 hover:text-red-800 text-sm font-medium"
+                            data-tooltip="Deprovision this service and remove K8s resources" data-tooltip-pos="top">Delete</button>
                 </td>
             </tr>
             {{end}}
@@ -68,7 +69,7 @@
         You haven't created any backing services yet. Browse the service catalog to provision databases, caches, message queues, and more.
     </p>
     <div class="mt-6">
-        <a href="/catalog" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium">
+        <a href="/catalog" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium" data-tooltip="Open the service catalog to provision a new service">
             Browse Catalog
         </a>
     </div>

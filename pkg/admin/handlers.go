@@ -11,22 +11,24 @@ import (
 
 // PageData is the base data passed to every full-page template.
 type PageData struct {
-	Title         string
-	Version       string
-	Active        string
-	ActiveCluster string
-	Content       any
-	User          *auth.UserSession // nil when auth is disabled or not logged in
-	AuthEnabled   bool
+	Title           string
+	Version         string
+	Active          string
+	ActiveCluster   string
+	Content         any
+	User            *auth.UserSession // nil when auth is disabled or not logged in
+	AuthEnabled     bool
+	TooltipsEnabled bool
 }
 
 func (s *Server) pageData(title, active string) PageData {
 	return PageData{
-		Title:         title,
-		Version:       s.version,
-		Active:        active,
-		ActiveCluster: s.clientManager.GetActive(),
-		AuthEnabled:   s.authEnabled(),
+		Title:           title,
+		Version:         s.version,
+		Active:          active,
+		ActiveCluster:   s.clientManager.GetActive(),
+		AuthEnabled:     s.authEnabled(),
+		TooltipsEnabled: s.config.UI.Tooltips,
 	}
 }
 

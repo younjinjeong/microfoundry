@@ -60,13 +60,13 @@
                 <label class="flex items-center">
                     <input type="checkbox" name="insecure" value="true" {{if (index $c "Registry").Insecure}}checked{{end}}
                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
-                    <span class="ml-2 text-sm text-gray-700">Skip TLS Verification</span>
+                    <span class="ml-2 text-sm text-gray-700" data-tooltip="Allow insecure connections to the registry">Skip TLS Verification</span>
                 </label>
 
                 <label class="flex items-center">
                     <input type="checkbox" name="enabled" value="true" {{if (index $c "Registry").Enabled}}checked{{end}}
                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
-                    <span class="ml-2 text-sm text-gray-700">Enable Registry Push</span>
+                    <span class="ml-2 text-sm text-gray-700" data-tooltip="Enable image push to this registry on mf push">Enable Registry Push</span>
                 </label>
             </div>
 
@@ -78,6 +78,7 @@
                             hx-include="closest form"
                             hx-target="#test-result"
                             hx-swap="innerHTML"
+                            data-tooltip="Verify connectivity to the configured registry" data-tooltip-pos="top"
                             class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -99,10 +100,12 @@
             <!-- Actions -->
             <div class="flex items-center space-x-3 pt-2">
                 <button type="submit"
+                        data-tooltip="Save registry settings to Kubernetes" data-tooltip-pos="top"
                         class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">
                     Save Registry Settings
                 </button>
                 <a href="/config"
+                   data-tooltip="Return without saving" data-tooltip-pos="top"
                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors">
                     Cancel
                 </a>

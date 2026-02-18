@@ -10,6 +10,7 @@
         <div class="flex items-center space-x-3">
             <select id="state-filter"
                     onchange="window.location.href='/apps?state='+this.value"
+                    data-tooltip="Filter applications by running state"
                     class="text-sm border border-gray-300 rounded-md px-3 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="all" {{if eq (index $c "Filter") "all"}}selected{{end}}>All States</option>
                 <option value="started" {{if eq (index $c "Filter") "started"}}selected{{end}}>Started</option>
@@ -19,6 +20,7 @@
                     hx-target="#app-table-body"
                     hx-select="#app-table-body"
                     hx-swap="outerHTML"
+                    data-tooltip="Reload application list. Auto-refreshes every 10s."
                     class="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 transition-colors">
                 Refresh
             </button>

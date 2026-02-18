@@ -22,7 +22,7 @@
         </span>
         {{end}}
         {{end}}
-        <a href="/topologies/upload" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium">
+        <a href="/topologies/upload" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium" data-tooltip="Upload Terraform files for service provisioning">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
             </svg>
@@ -162,9 +162,11 @@
                 <div class="flex items-center space-x-1 ml-4">
                     <span class="text-xs text-gray-400">{{.VisibleCount}}/{{len .Plans}} visible</span>
                     <button hx-post="/catalog/{{.ServiceType.ID}}/visibility" hx-swap="none" hx-vals='{"visible":"true"}'
-                            class="px-2 py-1 text-xs text-green-700 bg-green-50 rounded hover:bg-green-100">Enable All</button>
+                            class="px-2 py-1 text-xs text-green-700 bg-green-50 rounded hover:bg-green-100"
+                            data-tooltip="Make all plans visible to users" data-tooltip-pos="top">Enable All</button>
                     <button hx-post="/catalog/{{.ServiceType.ID}}/visibility" hx-swap="none" hx-vals='{"visible":"false"}'
-                            class="px-2 py-1 text-xs text-gray-600 bg-gray-50 rounded hover:bg-gray-100">Disable All</button>
+                            class="px-2 py-1 text-xs text-gray-600 bg-gray-50 rounded hover:bg-gray-100"
+                            data-tooltip="Hide all plans from users" data-tooltip-pos="top">Disable All</button>
                 </div>
             </div>
         </div>

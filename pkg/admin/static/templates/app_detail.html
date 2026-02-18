@@ -32,6 +32,7 @@
                    hx-get="/apps/{{$d.Name}}/tab/overview"
                    hx-target="#tab-content"
                    hx-push-url="/apps/{{$d.Name}}?tab=overview"
+                   data-tooltip="App info, routes, resources, and build details"
                    class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "overview"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
                     Overview
                 </a>
@@ -39,6 +40,7 @@
                    hx-get="/apps/{{$d.Name}}/tab/instances"
                    hx-target="#tab-content"
                    hx-push-url="/apps/{{$d.Name}}?tab=instances"
+                   data-tooltip="Running pod instances with status, restarts, and node info"
                    class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "instances"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
                     Instances
                 </a>
@@ -46,6 +48,7 @@
                    hx-get="/apps/{{$d.Name}}/tab/config"
                    hx-target="#tab-content"
                    hx-push-url="/apps/{{$d.Name}}?tab=config"
+                   data-tooltip="Environment variables, resource limits, and labels"
                    class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "config"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
                     Config
                 </a>
@@ -53,6 +56,7 @@
                    hx-get="/apps/{{$d.Name}}/tab/services"
                    hx-target="#tab-content"
                    hx-push-url="/apps/{{$d.Name}}?tab=services"
+                   data-tooltip="Bound backing services and associated secrets"
                    class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "services"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
                     Services
                 </a>
@@ -60,6 +64,7 @@
                    hx-get="/apps/{{$d.Name}}/tab/routes"
                    hx-target="#tab-content"
                    hx-push-url="/apps/{{$d.Name}}?tab=routes"
+                   data-tooltip="HTTP routes mapped to this application"
                    class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "routes"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
                     Routes
                 </a>
@@ -67,6 +72,7 @@
                    hx-get="/apps/{{$d.Name}}/tab/logs"
                    hx-target="#tab-content"
                    hx-push-url="/apps/{{$d.Name}}?tab=logs"
+                   data-tooltip="Live streaming and historical log viewer (Loki)"
                    class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "logs"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
                     Logs
                 </a>
@@ -74,6 +80,7 @@
                    hx-get="/apps/{{$d.Name}}/tab/metrics"
                    hx-target="#tab-content"
                    hx-push-url="/apps/{{$d.Name}}?tab=metrics"
+                   data-tooltip="CPU, memory, network, and restart metrics (Grafana)"
                    class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "metrics"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
                     Metrics
                 </a>
@@ -81,6 +88,7 @@
                    hx-get="/apps/{{$d.Name}}/tab/performance"
                    hx-target="#tab-content"
                    hx-push-url="/apps/{{$d.Name}}?tab=performance"
+                   data-tooltip="RED metrics: request rate, errors, and latency (Beyla eBPF)"
                    class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "performance"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
                     Performance
                 </a>

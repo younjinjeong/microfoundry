@@ -30,6 +30,10 @@ admin:
   port: 8080
   host: "0.0.0.0"
 
+# Admin UI feature toggles
+ui:
+  tooltips: true  # Show contextual help tooltips on hover (disable with false)
+
 monitoring:
   grafana_url: "http://localhost:3000"
   loki_url: "http://loki.monitoring.svc.cluster.local:3100"

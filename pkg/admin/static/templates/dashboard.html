@@ -6,7 +6,7 @@
 {{$c := .Content}}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <!-- Applications Card -->
-    <a href="/apps" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+    <a href="/apps" class="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow" data-tooltip="Total deployed applications. Click to view list.">
         <div class="flex items-center">
             <div class="p-3 rounded-full bg-blue-100 text-blue-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -21,7 +21,7 @@
     </a>
 
     <!-- Domain Card -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-lg shadow p-6" data-tooltip="Base domain used for routing traffic to applications">
         <div class="flex items-center">
             <div class="p-3 rounded-full bg-green-100 text-green-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,7 +36,7 @@
     </div>
 
     <!-- Namespace Card -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-lg shadow p-6" data-tooltip="Kubernetes namespace where resources are deployed">
         <div class="flex items-center">
             <div class="p-3 rounded-full bg-purple-100 text-purple-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,7 +51,7 @@
     </div>
 
     <!-- K8s Context Card -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-lg shadow p-6" data-tooltip="Active Kubernetes context from kubeconfig">
         <div class="flex items-center">
             <div class="p-3 rounded-full bg-orange-100 text-orange-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,19 +72,19 @@
         <h3 class="text-lg font-medium text-gray-900">Quick Links</h3>
     </div>
     <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <a href="/apps" class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+        <a href="/apps" class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-tooltip="Browse and manage all deployed apps">
             <span class="text-blue-600 font-medium">View Applications</span>
             <svg class="w-4 h-4 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
         </a>
-        <a href="/config" class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+        <a href="/config" class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-tooltip="View and edit platform settings">
             <span class="text-blue-600 font-medium">Platform Configuration</span>
             <svg class="w-4 h-4 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
         </a>
-        <a href="/services" class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+        <a href="/services" class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors" data-tooltip="View and manage provisioned backing services">
             <span class="text-blue-600 font-medium">Backing Services</span>
             <svg class="w-4 h-4 ml-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>

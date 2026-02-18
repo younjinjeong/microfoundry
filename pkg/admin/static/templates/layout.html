@@ -10,9 +10,54 @@
     <script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
     <style>
         [hx-swap-oob] { display: none; }
+        /* Tooltip system — pure CSS via data-tooltip attribute */
+        [data-tooltip] { position: relative; }
+        [data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            background: #111827;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: nowrap;
+            max-width: 320px;
+            z-index: 50;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        [data-tooltip]:hover::after,
+        [data-tooltip]:focus-visible::after {
+            opacity: 1;
+        }
+        /* Default: bottom */
+        [data-tooltip]::after {
+            top: 100%; left: 50%; transform: translateX(-50%);
+            margin-top: 6px;
+        }
+        /* Right (sidebar nav) */
+        [data-tooltip-pos="right"]::after {
+            top: 50%; left: 100%; transform: translateY(-50%);
+            margin-top: 0; margin-left: 8px;
+        }
+        /* Top (row action buttons) */
+        [data-tooltip-pos="top"]::after {
+            top: auto; bottom: 100%; left: 50%; transform: translateX(-50%);
+            margin-top: 0; margin-bottom: 6px;
+        }
+        /* Left */
+        [data-tooltip-pos="left"]::after {
+            top: 50%; left: auto; right: 100%; transform: translateY(-50%);
+            margin-top: 0; margin-right: 8px;
+        }
+        /* Disable tooltips */
+        body.tooltips-off [data-tooltip]::after { display: none !important; }
     </style>
 </head>
-<body class="h-full">
+<body class="h-full {{if not .TooltipsEnabled}}tooltips-off{{end}}">
     <div class="flex h-full">
         {{template "nav" .}}
         <main class="flex-1 overflow-y-auto">

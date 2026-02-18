@@ -33,28 +33,32 @@
                    hx-get="/users/tab/orgs"
                    hx-target="#tab-content"
                    hx-push-url="/users?tab=orgs"
-                   class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "orgs"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
+                   class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "orgs"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}"
+                   data-tooltip="Manage organizations and team namespaces">
                     Organizations
                 </a>
                 <a href="/users?tab=users"
                    hx-get="/users/tab/users"
                    hx-target="#tab-content"
                    hx-push-url="/users?tab=users"
-                   class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "users"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
+                   class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "users"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}"
+                   data-tooltip="View and manage Keycloak user accounts">
                     Users
                 </a>
                 <a href="/users?tab=policies"
                    hx-get="/users/tab/policies"
                    hx-target="#tab-content"
                    hx-push-url="/users?tab=policies"
-                   class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "policies"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
+                   class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "policies"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}"
+                   data-tooltip="View and edit OPA Rego authorization policies">
                     Policies
                 </a>
                 <a href="/users?tab=audit"
                    hx-get="/users/tab/audit"
                    hx-target="#tab-content"
                    hx-push-url="/users?tab=audit"
-                   class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "audit"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}">
+                   class="whitespace-nowrap py-4 px-6 font-medium text-sm border-b-2 {{if eq $tab "audit"}}border-blue-600 text-blue-600{{else}}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{{end}}"
+                   data-tooltip="Review authorization decision audit trail">
                     Audit Log
                 </a>
             </nav>

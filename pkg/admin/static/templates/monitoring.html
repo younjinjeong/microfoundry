@@ -12,7 +12,8 @@
             <p class="text-sm text-gray-500 mt-1">Application metrics, cluster resources, and alert management</p>
         </div>
         <a href="{{index $c "GrafanaBaseURL"}}" target="_blank"
-           class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700">
+           class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+           data-tooltip="Open Grafana dashboard in a new tab">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
             </svg>
@@ -55,7 +56,8 @@
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <h3 class="text-lg font-medium text-gray-900">MicroFoundry Overview</h3>
                 <a href="{{index $c "FullOverviewURL"}}" target="_blank"
-                   class="text-sm text-blue-600 hover:underline flex items-center">
+                   class="text-sm text-blue-600 hover:underline flex items-center"
+                   data-tooltip="View this dashboard in full Grafana">
                     Open in Grafana
                     <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -74,7 +76,8 @@
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <h3 class="text-lg font-medium text-gray-900">Cluster Resources</h3>
                 <a href="{{index $c "FullClusterURL"}}" target="_blank"
-                   class="text-sm text-blue-600 hover:underline flex items-center">
+                   class="text-sm text-blue-600 hover:underline flex items-center"
+                   data-tooltip="View this dashboard in full Grafana">
                     Open in Grafana
                     <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>

@@ -20,7 +20,7 @@
                             {{if isSensitive $key}}
                             <span class="env-masked" data-value="{{$val}}">
                                 <span class="mask-text">&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;</span>
-                                <button onclick="toggleEnvValue(this)" class="ml-2 text-xs text-blue-600 hover:text-blue-800">Show</button>
+                                <button onclick="toggleEnvValue(this)" data-tooltip="Toggle visibility of sensitive value" data-tooltip-pos="left" class="ml-2 text-xs text-blue-600 hover:text-blue-800">Show</button>
                             </span>
                             {{else}}
                             {{$val}}

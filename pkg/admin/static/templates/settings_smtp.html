@@ -66,13 +66,13 @@
                 <label class="flex items-center">
                     <input type="checkbox" name="tls" value="true" {{if (index $c "SMTP").TLS}}checked{{end}}
                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
-                    <span class="ml-2 text-sm text-gray-700">Use TLS</span>
+                    <span class="ml-2 text-sm text-gray-700" data-tooltip="Encrypt SMTP connection with TLS">Use TLS</span>
                 </label>
 
                 <label class="flex items-center">
                     <input type="checkbox" name="enabled" value="true" {{if (index $c "SMTP").Enabled}}checked{{end}}
                            class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
-                    <span class="ml-2 text-sm text-gray-700">Enable SMTP</span>
+                    <span class="ml-2 text-sm text-gray-700" data-tooltip="Enable email notifications for alerts">Enable SMTP</span>
                 </label>
             </div>
 
@@ -84,6 +84,7 @@
                             hx-include="closest form"
                             hx-target="#test-result"
                             hx-swap="innerHTML"
+                            data-tooltip="Send a test email using current configuration" data-tooltip-pos="top"
                             class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
@@ -97,10 +98,12 @@
             <!-- Actions -->
             <div class="flex items-center space-x-3 pt-2">
                 <button type="submit"
+                        data-tooltip="Save SMTP configuration to Kubernetes" data-tooltip-pos="top"
                         class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">
                     Save SMTP Settings
                 </button>
                 <a href="/config"
+                   data-tooltip="Return without saving" data-tooltip-pos="top"
                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors">
                     Cancel
                 </a>

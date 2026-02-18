@@ -17,6 +17,12 @@ type Config struct {
 	Registry   RegistryConfig   `mapstructure:"registry"`
 	SMTP       SMTPConfig       `mapstructure:"smtp"`
 	Auth       AuthConfig       `mapstructure:"auth"`
+	UI         UIConfig         `mapstructure:"ui"`
+}
+
+// UIConfig holds admin UI feature toggles.
+type UIConfig struct {
+	Tooltips bool `mapstructure:"tooltips"`
 }
 
 // RegistryConfig provides file-based defaults for container registry settings.
@@ -168,6 +174,7 @@ func Load() (*Config, error) {
 	v.SetDefault("monitoring.alertmanager_url", "http://kube-prometheus-kube-prome-alertmanager.monitoring.svc.cluster.local:9093")
 	v.SetDefault("monitoring.prometheus_url", "http://kube-prometheus-kube-prome-prometheus.monitoring.svc.cluster.local:9090")
 	v.SetDefault("monitoring.beyla_enabled", true)
+	v.SetDefault("ui.tooltips", true)
 
 	// Read config file (optional — not an error if missing)
 	if err := v.ReadInConfig(); err != nil {

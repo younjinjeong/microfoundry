@@ -18,6 +18,20 @@ main (stable)
 4. When `rc` accumulates a validated set of features, it is merged to `main` and optionally tagged as a release.
 5. Never stack PRs by merging one epic branch into another. Each epic branch is independent and based on `rc`.
 
+### CRITICAL — Never Push to `main` Directly
+
+- **NEVER run `git push origin main`** under any circumstances.
+- A pre-push hook (`.git/hooks/pre-push`) blocks direct pushes to `main` as a safety net.
+- The `sync-rc-to-main` GitHub Action automatically syncs `main` when PRs merge to `rc`.
+- If `main` falls behind `rc`, let the next PR merge trigger the sync — do NOT manually push.
+- All PRs MUST have labels applied before requesting review. Use `--label` flag or `gh api` to add labels.
+
+### Branch Cleanup
+
+- After a PR is merged, delete the feature branch (remote and local).
+- Run `git fetch --prune` periodically to clean up stale remote tracking branches.
+- Never leave merged branches lingering on the remote.
+
 ### Creating a New Epic Branch
 
 ```bash

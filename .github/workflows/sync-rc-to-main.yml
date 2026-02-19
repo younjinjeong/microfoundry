@@ -19,14 +19,11 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fast-forward main to rc
+      - name: Sync main to rc
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout main
-          git merge --ff-only origin/rc || {
-            echo "::warning::Fast-forward merge failed — rc has diverged from main. Creating merge commit."
-            git merge origin/rc --no-edit -m "merge: sync rc → main (PR #${{ github.event.pull_request.number }})"
-          }
-          git push origin main
+          git reset --hard origin/rc
+          git push origin main --force-with-lease

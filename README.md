@@ -10,7 +10,7 @@
 
 MicroFoundry replaces the heavyweight BOSH/Diego runtime with Kubernetes, managed cloud services, and modern observability. The result: `cf push`-style deployments, OSBAPI service binding, Loggregator-equivalent logging — all backed by Kubernetes, Prometheus, Loki, and Grafana Beyla.
 
-> **Built with AI** — This project is developed through a structured Human-AI collaborative workflow using [Claude Code](https://claude.ai/claude-code). Every Epic goes through a 7-agent review process covering security, platform engineering, API design, frontend, DevOps, QA, and product management. See [How We Build](#how-we-build-human-ai-collaborative-development) for details.
+> **Built with AI** — This project is developed through a structured Human-AI collaborative workflow using [Claude Code](https://claude.ai/claude-code). Every Epic goes through a 7-agent review process covering security, platform engineering, API design, frontend, DevOps, QA, and product management. See [How We Build](#how-we-build-human-ai-collaborative-development) for details. AI agents can read [`ai/AGENTS.md`](ai/AGENTS.md) for fast onboarding — project map, key patterns, CLI reference, and checklists.
 
 ---
 

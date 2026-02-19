@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
 	"github.com/younjinjeong/microfoundry/docs"
 	"github.com/younjinjeong/microfoundry/pkg/auth"
 	"github.com/younjinjeong/microfoundry/pkg/models"
@@ -559,8 +560,14 @@ func (s *Server) DocsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	mdParser := goldmark.New(
+		goldmark.WithParserOptions(
+			parser.WithAutoHeadingID(),
+		),
+	)
+
 	var buf bytes.Buffer
-	if err := goldmark.Convert(md, &buf); err != nil {
+	if err := mdParser.Convert(md, &buf); err != nil {
 		http.Error(w, "markdown render error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

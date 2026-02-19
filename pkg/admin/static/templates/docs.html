@@ -301,9 +301,11 @@
     if (headings.length === 0) return;
 
     headings.forEach(function(h, i) {
-        // Create anchor ID
-        const id = 'heading-' + i;
-        h.id = id;
+        // Use goldmark-generated ID, or create a fallback
+        if (!h.id) {
+            h.id = 'heading-' + i;
+        }
+        const id = h.id;
 
         const level = parseInt(h.tagName.charAt(1));
         const a = document.createElement('a');

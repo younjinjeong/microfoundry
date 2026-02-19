@@ -25,7 +25,7 @@ MicroFoundry replaces the heavyweight BOSH/Diego runtime with Kubernetes, manage
 - **CF-compatible CLI** — 25+ commands mirror CloudFoundry (`mf push`, `mf bind-service`, `mf logs`)
 - **10 backing services** — MariaDB, PostgreSQL, Redis, RabbitMQ, MinIO, and more with real K8s provisioning (StatefulSet + PVC)
 - **Production-ready IAM** — Keycloak OIDC, 5-tier RBAC (platform → workspace → org → member → viewer), OPA Rego policies, SCIM v2
-- **Admin dashboard with no JS build step** — Go templates + HTMX + Tailwind CSS, 14+ pages, all server-rendered
+- **Admin dashboard with no JS build step** — Go templates + HTMX + Tailwind CSS, 16+ pages, all server-rendered
 - **AI-native** — MCP Server lets Claude, Cursor, and other AI tools deploy and manage apps directly
 - **Cross-platform release** — GoReleaser builds for Linux/macOS/Windows on amd64/arm64, multi-arch Docker images, Helm chart as OCI artifact
 - **Cloud deployment packages** — Terraform blueprints for AWS EKS, AWS ECS Fargate, GCP GKE, Azure AKS, and local K8s
@@ -38,7 +38,7 @@ MicroFoundry replaces the heavyweight BOSH/Diego runtime with Kubernetes, manage
 - **10 backing services** — MariaDB, PostgreSQL, Redis, RabbitMQ, MinIO, Kong, and more with real K8s provisioning
 - **Zero-code observability** — Grafana Beyla eBPF auto-instruments all HTTP traffic for RED metrics
 - **Multi-cluster** — Manage Docker Desktop, EKS, GKE, AKS clusters from a single control plane
-- **Admin Dashboard** — Full-featured web UI with HTMX (no JS build step), 14+ pages
+- **Admin Dashboard** — Full-featured web UI with HTMX (no JS build step), 16+ pages
 - **Keycloak IAM** — OIDC authentication, SCIM v2 provisioning, OPA authorization, 5-tier RBAC
 - **Workspace hierarchy** — Platform → Workspace → Organization → Member → Viewer role-based access
 - **Pluggable gateway** — Kong, Nginx, Traefik, or AWS API Gateway with WebSocket/gRPC/HTTP3 support
@@ -49,7 +49,7 @@ MicroFoundry replaces the heavyweight BOSH/Diego runtime with Kubernetes, manage
 
 ## Admin Dashboard
 
-The built-in admin dashboard (`mf admin`, default `:8080`) provides a complete platform management experience — application lifecycle, service catalog, multi-cluster management, observability, secrets, IAM, and platform settings in a single interface.
+The built-in admin dashboard (`mf admin`, default `:8443` with TLS) provides a complete platform management experience — application lifecycle, service catalog, multi-cluster management, observability, secrets, IAM, platform settings, and embedded documentation in a single interface.
 
 <p align="center">
   <img src="docs/images/dashboard-walkthrough.gif" alt="MicroFoundry Admin Dashboard Walkthrough" width="900">
@@ -98,7 +98,8 @@ The built-in admin dashboard (`mf admin`, default `:8080`) provides a complete p
 - **SMTP** — Email notification server configuration
 - **Endpoints** — Auto-discovered service URLs (Prometheus, Loki, Grafana, AlertManager) with override
 - **Metrics & Alerts** — Prometheus alerts + embedded Grafana dashboards with Beyla eBPF auto-instrumentation
-- **Platform** — Platform-wide configuration and routing view
+- **Platform** — Environment detection (docker-desktop/EKS/GKE/AKS), DNS configuration, TLS certificate details, ingress resources, and secrets-at-rest guidance
+- **Documentation** — In-app docs viewer with categorized landing page, sidebar table of contents, reading time estimates, and 6 embedded markdown documents
 
 ---
 
@@ -192,7 +193,7 @@ The built-in admin dashboard (`mf admin`, default `:8080`) provides a complete p
 | **Install time** | Hours (BOSH deploy) | Minutes (Helm install) |
 | **State storage** | PostgreSQL/MySQL (8 databases) | Kubernetes objects (ConfigMaps, Secrets) |
 | **Monitoring** | Requires external nozzle integration | Integrated (Prometheus/Grafana/Loki/Beyla eBPF) |
-| **Admin UI** | Apps Manager (commercial, Tanzu only) | Built-in open-source dashboard (43 templates) |
+| **Admin UI** | Apps Manager (commercial, Tanzu only) | Built-in open-source dashboard (47 templates) |
 | **Authorization** | Hardcoded roles in Ruby CC | OPA Rego policies (editable at runtime) |
 | **Cloud providers** | BOSH CPI per IaaS | Terraform modules (AWS EKS, ECS Fargate, GCP GKE, Azure AKS) |
 
@@ -223,7 +224,7 @@ For the full architectural comparison covering all 10 component areas, CLI parit
 | `mf secrets` | — | List managed secrets |
 | `mf create-secret <name> k=v...` | — | Create user-defined secret |
 | `mf delete-secret <name>` | — | Delete a secret |
-| `mf admin` | — | Start web dashboard (:8080) with optional TLS |
+| `mf admin` | — | Start web dashboard (:8443 with TLS, :8080 without) |
 | `mf setup keycloak` | — | Deploy Keycloak for authentication |
 | `mf setup keycloak-realm` | — | Configure Keycloak realm and client |
 | `mf setup keycloak-idp` | — | Add identity provider (Google, GitHub, Amazon) |
@@ -349,6 +350,7 @@ mf setup keycloak-idp \          # Add social login
 ```bash
 make build              # Build to bin/mf
 make install            # Install to GOPATH/bin
+make hooks              # Install pre-commit hooks (gitleaks secret detection)
 ```
 
 ### Deploy Monitoring Stack
@@ -422,6 +424,8 @@ kubernetes:
 | **IaC** | Terraform | Cloud resource topology management |
 | **AI** | Model Context Protocol (MCP) | AI tool platform access |
 | **K8s Client** | client-go | Kubernetes API interactions |
+| **Security** | gitleaks + pre-commit | Secret detection and commit-time security scanning |
+| **Docs Rendering** | goldmark | In-app markdown rendering with auto heading IDs |
 
 ---
 
@@ -542,22 +546,27 @@ microfoundry/
 │   └── helpers/               #   Test utilities
 │
 ├── configs/mf.example.yaml   # Example configuration
-├── docs/                      # Documentation
+├── docs/                      # Documentation (embedded in admin UI via embed.FS)
+│   ├── embed.go               #   go:embed directive for in-app docs viewer
 │   ├── user-manual.md         #   Complete user guide
 │   ├── architecture.md        #   Technical architecture
 │   ├── admin-guide.md         #   Admin dashboard guide
 │   ├── cloudfoundry-vs-microfoundry.md  # CF vs MF comparison
-│   ├── cloudfoundry-architecture.md  # CF reference
-│   └── observability-capacity.md     # Monitoring docs
+│   ├── cloudfoundry-architecture.md  # CF reference architecture
+│   └── observability-capacity.md     # Monitoring & capacity planning
 ├── Makefile                   # Build targets
 ├── Dockerfile                 # Container build
 ├── CLAUDE.md                  # Agent workflow rules
+├── .gitleaks.toml             # Gitleaks secret detection config
+├── .pre-commit-config.yaml    # Pre-commit hooks (gitleaks, linting)
 └── LICENSE
 ```
 
 ---
 
 ## Documentation
+
+All documentation is available both as markdown files and through the **in-app docs viewer** at `/docs` in the admin dashboard — with categorized landing page, sidebar table of contents, reading time, and word count.
 
 | Document | Description |
 |----------|-------------|
@@ -566,7 +575,7 @@ microfoundry/
 | [Admin Guide](docs/admin-guide.md) | Admin dashboard pages, API reference (100+ endpoints) |
 | [CF vs MF Comparison](docs/cloudfoundry-vs-microfoundry.md) | Side-by-side architectural comparison across 10 component areas |
 | [CF Architecture](docs/cloudfoundry-architecture.md) | CloudFoundry reference architecture |
-| [Observability](docs/observability-capacity.md) | Monitoring stack documentation |
+| [Observability & Capacity](docs/observability-capacity.md) | Monitoring stack and capacity planning |
 
 ---
 
@@ -712,6 +721,9 @@ MicroFoundry has been built incrementally through a series of Epics, each adding
 | [#61](https://github.com/younjinjeong/microfoundry/pull/61) | Service Endpoints | Configurable service endpoints with K8s auto-discovery | — |
 | [#64](https://github.com/younjinjeong/microfoundry/pull/64) | Workspace RBAC | Workspace hierarchy, 5-tier RBAC, CLI auth | — |
 | [#65](https://github.com/younjinjeong/microfoundry/pull/65) | Workspace IAM Tab | Workspaces tab in Users & Organizations page | — |
+| — | Release & CSP | GoReleaser workflow, 5 cloud deployment packages (AWS EKS, ECS Fargate, GCP GKE, Azure AKS, local K8s) | — |
+| — | Platform Settings | Platform settings page (DNS, TLS, environment detection, ingress), security pre-commit hooks | — |
+| — | Docs Redesign | In-app docs viewer with landing page, sidebar TOC, reading time, 6 embedded documents | — |
 
 ### External Contributions
 
@@ -751,6 +763,7 @@ This project uses Claude Code with a defined workflow in [CLAUDE.md](CLAUDE.md).
 ### Build & Verify
 
 ```bash
+make hooks              # Install pre-commit hooks (gitleaks, secret detection)
 go build ./...          # Must pass
 go vet ./...            # Must pass
 go test ./...           # Run tests

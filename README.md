@@ -3,8 +3,8 @@
 [![CI](https://github.com/younjinjeong/microfoundry/actions/workflows/ci.yml/badge.svg?branch=rc)](https://github.com/younjinjeong/microfoundry/actions/workflows/ci.yml)
 [![Release](https://github.com/younjinjeong/microfoundry/actions/workflows/release.yml/badge.svg)](https://github.com/younjinjeong/microfoundry/releases)
 [![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)](https://go.dev)
-[![License](https://img.shields.io/github/license/younjinjeong/microfoundry)](LICENSE)
-[![Latest Release](https://img.shields.io/github/v/release/younjinjeong/microfoundry)](https://github.com/younjinjeong/microfoundry/releases/latest)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/Release-v0.1.0-blue.svg)](https://github.com/younjinjeong/microfoundry/releases/tag/v0.1.0)
 
 **A micro CloudFoundry for Kubernetes** — lightweight PaaS that preserves the CloudFoundry developer experience while running on cloud-native infrastructure.
 

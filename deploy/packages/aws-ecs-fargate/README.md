@@ -60,15 +60,17 @@ domain     = "apps.example.com"
 mf_version = "0.1.0"
 region     = "us-east-1"
 
-# Optional overrides:
+# Optional overrides (defaults are cost-optimized for developer tooling):
 # project_name            = "microfoundry"
-# fargate_cpu             = 512
-# fargate_memory          = 1024
-# eks_node_instance_type  = "t3.medium"
-# eks_node_count          = 2
+# fargate_cpu             = 256        # 0.25 vCPU (sufficient for MF control plane)
+# fargate_memory          = 512        # 512 MiB
+# use_fargate_spot        = true       # ~70% savings; only delays new deploys on interruption
+# eks_node_instance_type  = "t3.small" # 2 vCPU, 2 GiB
+# eks_node_count          = 1          # Single node for dev/staging
+# enable_nat_gateway      = true       # Set false to save ~$32/month
 # eks_cluster_version     = "1.29"
 # tags = {
-#   Environment = "production"
+#   Environment = "development"
 #   Team        = "platform"
 # }
 ```
@@ -119,7 +121,7 @@ Copy `mf.example.yaml` to the EFS volume as `mf.yaml` and edit it with your doma
 | **ECS Service**                 | Maintains desired task count, wired to ALB target group |
 | **ALB**                         | Internet-facing load balancer routing traffic to Fargate |
 | **EKS Cluster**                 | Managed Kubernetes cluster for application workloads |
-| **EKS Managed Node Group**      | EC2 worker nodes (t3.medium x 2 by default)     |
+| **EKS Managed Node Group**      | EC2 worker nodes (t3.small x 1 by default)      |
 | **ECR Repository**              | Container registry for the MicroFoundry image    |
 | **EFS File System**             | Persistent storage for MicroFoundry configuration |
 | **CloudWatch Log Group**        | Centralized Fargate container logs (`/ecs/microfoundry`) |
@@ -166,26 +168,57 @@ For workload-level monitoring on EKS, deploy a Prometheus + Grafana stack on the
 
 ## Cost Estimates
 
-Approximate monthly costs for the default configuration in us-east-1 (as of 2025):
+### Design Philosophy
 
-| Resource                  | Configuration              | Estimated Cost   |
-|---------------------------|----------------------------|------------------|
-| ECS Fargate               | 0.5 vCPU, 1 GB memory     | ~$15/month       |
-| EKS Control Plane         | Managed cluster            | ~$73/month       |
-| EKS Worker Nodes          | 2x t3.medium               | ~$60/month       |
-| NAT Gateway               | Single AZ                  | ~$32/month       |
-| ALB                       | Application Load Balancer  | ~$16/month       |
-| EFS                       | Minimal usage (<1 GB)      | ~$0.30/month     |
-| CloudWatch Logs           | ~1 GB/month                | ~$0.50/month     |
-| ECR                       | ~1 GB storage              | ~$0.10/month     |
-| **Total**                 |                            | **~$197/month**  |
+MicroFoundry is a **developer tool**, not a production service. If MicroFoundry goes down, existing applications keep running on Kubernetes -- only new deployments are temporarily blocked. This means:
 
-These are estimates. Actual costs depend on traffic, log volume, and data transfer. Use the [AWS Pricing Calculator](https://calculator.aws/) for precise figures.
+- No need for high availability or multi-AZ redundancy
+- FARGATE_SPOT is ideal (interruptions only delay new deploys for a few minutes)
+- A single small EKS node handles most development and staging workloads
+- No disaster recovery infrastructure required
 
-To reduce costs:
-- Use `FARGATE_SPOT` capacity provider for non-production environments
-- Reduce `eks_node_count` to 1 for development
-- Use smaller instance types (e.g., `t3.small`)
+### Default Configuration (~$108/month)
+
+The default Terraform configuration is optimized for cost:
+
+| Resource           | Configuration             | Estimated Cost  |
+|--------------------|---------------------------|-----------------|
+| ECS Fargate (SPOT) | 0.25 vCPU, 512 MiB        | ~$3/month       |
+| EKS Control Plane  | Managed cluster           | ~$73/month      |
+| EKS Worker Nodes   | 1x t3.small               | ~$15/month      |
+| ALB                | Application Load Balancer | ~$16/month      |
+| EFS                | Minimal usage (<1 GB)     | ~$0.30/month    |
+| CloudWatch Logs    | ~1 GB/month               | ~$0.50/month    |
+| ECR                | ~1 GB storage             | ~$0.10/month    |
+| **Total**          |                           | **~$108/month** |
+
+### Fargate-Only Mode (~$20/month)
+
+If you already have an EKS cluster, you can deploy only the Fargate control plane and point it at your existing cluster using `additional_eks_clusters`:
+
+| Resource                  | Configuration                      | Estimated Cost   |
+|---------------------------|------------------------------------|------------------|
+| ECS Fargate (SPOT)        | 0.25 vCPU, 512 MiB                 | ~$3/month        |
+| ALB                       | Application Load Balancer          | ~$16/month       |
+| EFS + CloudWatch + ECR    | Minimal usage                      | ~$1/month        |
+| **Total**                 |                                    | **~$20/month**   |
+
+### Scaling Up
+
+For production use or larger teams, increase resources as needed:
+
+```hcl
+# Production configuration
+fargate_cpu             = 512         # ~$15/month
+fargate_memory          = 1024
+use_fargate_spot        = false       # On-demand for guaranteed availability
+eks_node_instance_type  = "t3.medium" # ~$30/node/month
+eks_node_count          = 2           # ~$60/month for 2 nodes
+enable_nat_gateway      = true        # +$32/month
+# Total: ~$197/month
+```
+
+All estimates are for us-east-1 as of 2025. Use the [AWS Pricing Calculator](https://calculator.aws/) for precise figures.
 
 ## Cleanup
 

@@ -34,7 +34,7 @@ variable "mf_version" {
 variable "fargate_cpu" {
   description = "CPU units for the Fargate task (256, 512, 1024, 2048, 4096)."
   type        = number
-  default     = 512
+  default     = 256
 
   validation {
     condition     = contains([256, 512, 1024, 2048, 4096], var.fargate_cpu)
@@ -45,7 +45,7 @@ variable "fargate_cpu" {
 variable "fargate_memory" {
   description = "Memory (MiB) for the Fargate task. Must be compatible with the chosen CPU value."
   type        = number
-  default     = 1024
+  default     = 512
 
   validation {
     condition     = var.fargate_memory >= 512 && var.fargate_memory <= 30720
@@ -53,23 +53,35 @@ variable "fargate_memory" {
   }
 }
 
+variable "use_fargate_spot" {
+  description = "Use FARGATE_SPOT capacity provider for ~70% cost savings. MicroFoundry is a developer tool — Spot interruptions only delay new deploys, not running applications."
+  type        = bool
+  default     = true
+}
+
 # -- EKS (Workload Cluster) ---------------------------------------------------
 
 variable "eks_node_instance_type" {
   description = "EC2 instance type for EKS worker nodes."
   type        = string
-  default     = "t3.medium"
+  default     = "t3.small"
 }
 
 variable "eks_node_count" {
   description = "Desired number of EKS worker nodes in the managed node group."
   type        = number
-  default     = 2
+  default     = 1
 
   validation {
     condition     = var.eks_node_count >= 1 && var.eks_node_count <= 20
     error_message = "eks_node_count must be between 1 and 20."
   }
+}
+
+variable "enable_nat_gateway" {
+  description = "Enable NAT gateway for private subnet internet access. Disable to save ~$32/month if the EKS cluster uses public subnets only."
+  type        = bool
+  default     = true
 }
 
 variable "eks_cluster_version" {

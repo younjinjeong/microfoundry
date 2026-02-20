@@ -297,9 +297,11 @@ This removes the Deployment, Service, Ingress, and associated /etc/hosts entries
 
 ## Backing Services
 
-MicroFoundry provides a built-in service catalog with 10 service types across 5 categories. All services are provisioned as Kubernetes resources (Deployments, Services, PVCs).
+MicroFoundry provides a built-in service catalog with 17 service types across 5 categories.
 
 ### Service Catalog
+
+**Local K8s Services** (provisioned as StatefulSets + PVCs):
 
 | Category | Services |
 |----------|----------|
@@ -309,10 +311,20 @@ MicroFoundry provides a built-in service catalog with 10 service types across 5 
 | **Storage** | MinIO (S3-compatible) |
 | **Gateway** | Kong, Nginx |
 
-Each service offers 3 plans:
-- **Small (Dev)** — 256MB memory, 250m CPU
-- **Medium (Staging)** — 512MB memory, 500m CPU
-- **Large (Production)** — 1024MB memory, 1000m CPU
+**AWS Managed Services** (provisioned via Terraform topologies):
+
+| Category | Services |
+|----------|----------|
+| **Database** | RDS PostgreSQL, RDS MySQL, OpenSearch |
+| **Cache** | ElastiCache Redis, ElastiCache Memcached |
+| **Messaging** | MSK (Kafka) |
+| **Storage** | S3 |
+
+Each service offers 3 plans with resource allocations appropriate to its provider:
+
+- **Small (Dev)** — minimal resources for development
+- **Medium (Staging)** — moderate resources for integration testing
+- **Large (Production)** — production-grade resources with HA where applicable
 
 ### Browse the Catalog
 

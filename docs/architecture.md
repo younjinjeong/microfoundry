@@ -133,7 +133,7 @@ pkg/
 ├── secrets/         # Secret management
 │   └── manager.go   # K8s Secret CRUD operations
 ├── service/         # Service broker
-│   ├── catalog.go   # 10 service types, 3 plans each
+│   ├── catalog.go   # 17 service types (10 local + 7 AWS)
 │   ├── manager.go   # Service lifecycle management
 │   ├── provisioner.go # K8s-native provisioning
 │   ├── binder.go    # VCAP_SERVICES injection
@@ -291,7 +291,7 @@ mf create-service postgresql small my-db
          ▼
 ┌─────────────────────┐
 │  service.Manager    │  Orchestrates create/bind/unbind/delete
-│  ├── catalog.go     │  10 types × 3 plans
+│  ├── catalog.go     │  17 types × 3 plans (10 local + 7 AWS)
 │  ├── provisioner.go │  K8s resource creation
 │  ├── binder.go      │  VCAP_SERVICES injection
 │  └── vcap.go        │  CF-compatible JSON format
@@ -310,10 +310,13 @@ mf create-service postgresql small my-db
 ### Catalog Structure
 
 Each service type defines:
-- **ID** — `postgresql`, `redis`, etc.
+- **ID** — `postgresql`, `redis`, `aws-rds-postgresql`, etc.
+- **Provider** — `local` (K8s-native) or `aws` (CSP-managed via Terraform)
 - **Category** — `database`, `cache`, `messaging`, `storage`, `gateway`
-- **Plans** — `small` (256MB/250m), `medium` (512MB/500m), `large` (1024MB/1000m)
+- **Plans** — `small` (dev), `medium` (staging), `large` (production)
 - **Resources** — memory, CPU, storage allocations per plan
+
+Local services (10) are provisioned as K8s StatefulSets with PVCs. AWS services (7) are provisioned via Terraform topology templates stored as ConfigMaps.
 
 ### Binding Flow
 

@@ -46,7 +46,7 @@ module "vpc" {
   public_subnets  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
   private_subnets = ["10.0.11.0/24", "10.0.12.0/24", "10.0.13.0/24"]
 
-  enable_nat_gateway   = true
+  enable_nat_gateway   = var.enable_nat_gateway
   single_nat_gateway   = true
   enable_dns_hostnames = true
   enable_dns_support   = true
@@ -627,7 +627,7 @@ resource "aws_ecs_cluster_capacity_providers" "mf" {
   capacity_providers = ["FARGATE", "FARGATE_SPOT"]
 
   default_capacity_provider_strategy {
-    capacity_provider = "FARGATE"
+    capacity_provider = var.use_fargate_spot ? "FARGATE_SPOT" : "FARGATE"
     weight            = 1
     base              = 1
   }

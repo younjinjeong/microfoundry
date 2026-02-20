@@ -29,7 +29,7 @@ MicroFoundry replaces the heavyweight BOSH/Diego runtime with Kubernetes, manage
 
 - **5-minute setup** — `make build && mf push` from zero to deployed app with monitoring
 - **CF-compatible CLI** — 25+ commands mirror CloudFoundry (`mf push`, `mf bind-service`, `mf logs`)
-- **10 backing services** — MariaDB, PostgreSQL, Redis, RabbitMQ, MinIO, and more with real K8s provisioning (StatefulSet + PVC)
+- **17 backing services** — 10 local K8s (MariaDB, PostgreSQL, Redis, RabbitMQ, MinIO) + 7 AWS managed (RDS, ElastiCache, MSK, S3, OpenSearch)
 - **Production-ready IAM** — Keycloak OIDC, 5-tier RBAC (platform → workspace → org → member → viewer), OPA Rego policies, SCIM v2
 - **Admin dashboard with no JS build step** — Go templates + HTMX + Tailwind CSS, 16+ pages, all server-rendered
 - **AI-native** — MCP Server lets Claude, Cursor, and other AI tools deploy and manage apps directly
@@ -41,7 +41,7 @@ MicroFoundry replaces the heavyweight BOSH/Diego runtime with Kubernetes, manage
 ## Highlights
 
 - **`mf push`** — Build and deploy from source (Dockerfile or Cloud Native Buildpacks)
-- **10 backing services** — MariaDB, PostgreSQL, Redis, RabbitMQ, MinIO, Kong, and more with real K8s provisioning
+- **17 backing services** — 10 local K8s + 7 AWS managed, all with real provisioning
 - **Zero-code observability** — Grafana Beyla eBPF auto-instruments all HTTP traffic for RED metrics
 - **Multi-cluster** — Manage Docker Desktop, EKS, GKE, AKS clusters from a single control plane
 - **Admin Dashboard** — Full-featured web UI with HTMX (no JS build step), 16+ pages
@@ -68,7 +68,7 @@ The built-in admin dashboard (`mf admin`, default `:8443` with TLS) provides a c
 | Dashboard | Applications | Service Catalog |
 |:---------:|:------------:|:---------------:|
 | <img src="docs/images/dashboard.png" alt="Dashboard" width="280"> | <img src="docs/images/apps-list.png" alt="Applications" width="280"> | <img src="docs/images/catalog.png" alt="Catalog" width="280"> |
-| Platform stats, quick links | App state, instances, routes | 10 service types, 3 plans each |
+| Platform stats, quick links | App state, instances, routes | 17 service types, 3 plans each |
 
 | Users & IAM | Workspaces | Clusters |
 |:-----------:|:----------:|:--------:|
@@ -98,7 +98,7 @@ The built-in admin dashboard (`mf admin`, default `:8443` with TLS) provides a c
 **Settings (platform-admin only):**
 - **Users & Orgs** — 5-tab IAM: Workspaces, Organizations, Users (Keycloak CRUD), OPA Policies, Audit Log
 - **Clusters** — Register and switch between Docker Desktop, EKS, GKE, AKS clusters
-- **Service Catalog** — Browse 10 service types by category with plan visibility and Terraform topology editor
+- **Service Catalog** — Browse 17 service types (10 local + 7 AWS) with plan visibility and Terraform topology editor
 - **Registry** — Container registry configuration (Harbor, ECR) with connection testing
 - **Webhooks** — HTTP webhook configuration for platform events
 - **SMTP** — Email notification server configuration
@@ -179,8 +179,8 @@ The built-in admin dashboard (`mf admin`, default `:8443` with TLS) provides a c
 | **Gorouter** | API Gateway (Kong / Nginx / AWS API GW) | Pluggable ingress controller |
 | **Cloud Controller** | MicroFoundry API Server (Go) | Lightweight API → K8s API directly |
 | **Buildpacks** | Cloud Native Buildpacks (CNB/Paketo) | Source-to-container without Dockerfile |
-| **Service Broker** | Built-in K8s-native Broker | 10 service types with real K8s provisioning |
-| **Service Catalog** | Built-in Catalog (10 services) | MariaDB, PostgreSQL, Redis, RabbitMQ, MinIO, Kong, etc. |
+| **Service Broker** | Built-in K8s-native + CSP Broker | 17 service types: 10 local K8s + 7 AWS managed |
+| **Service Catalog** | Built-in Catalog (17 services) | Local: MariaDB, PostgreSQL, Redis, etc. AWS: RDS, ElastiCache, MSK, S3 |
 | **Loggregator** | Promtail + Loki | Log collection per pod → Loki aggregation |
 | **Doppler/Metrics** | Prometheus + Grafana + Beyla eBPF | Auto-instrumented RED metrics |
 | **NATS (Alerts)** | AlertManager | Prometheus alerting rules + AlertManager |
@@ -221,7 +221,7 @@ For the full architectural comparison covering all 10 component areas, CLI parit
 | `mf logs [app]` | `cf logs` | Stream or fetch application logs |
 | `mf scale [app] -i N` | `cf scale` | Scale application instances |
 | `mf delete [app]` | `cf delete` | Delete app and clean up routes |
-| `mf catalog` | `cf marketplace` | List available services by category |
+| `mf catalog` | `cf marketplace` | List available services by category (local + AWS) |
 | `mf create-service <type> <plan> <name>` | `cf create-service` | Provision a backing service |
 | `mf services` | `cf services` | List provisioned service instances |
 | `mf bind-service <app> <svc>` | `cf bind-service` | Bind service → inject VCAP_SERVICES |
@@ -281,13 +281,20 @@ Waiting for rollout...    [3/3 instances running]
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Service Catalog                           │
+│                  Local K8s Services (10)                      │
 ├──────────────┬──────────────┬───────────────┬───────────────┤
 │  Databases   │  Caches      │  Messaging    │  Storage/GW   │
 ├──────────────┼──────────────┼───────────────┼───────────────┤
 │  MariaDB     │  Redis       │  RabbitMQ     │  MinIO (S3)   │
 │  PostgreSQL  │  Memcached   │  ActiveMQ     │  Kong          │
 │  ClickHouse  │              │               │  Nginx         │
+├──────────────┴──────────────┴───────────────┴───────────────┤
+│                  AWS Managed Services (7)                     │
+├──────────────┬──────────────┬───────────────┬───────────────┤
+│  RDS PgSQL   │  ElastiCache │  MSK (Kafka)  │  S3            │
+│  RDS MySQL   │  (Redis)     │               │  OpenSearch    │
+│              │  ElastiCache │               │                │
+│              │  (Memcached) │               │                │
 └──────────────┴──────────────┴───────────────┴───────────────┘
   Each with 3 plans: small (dev) / medium (staging) / large (prod)
 ```
@@ -408,6 +415,39 @@ kubernetes:
 
 ---
 
+## Cloud Deployment
+
+MicroFoundry includes Terraform deployment packages for all major cloud providers. Since MicroFoundry is a **developer tool** (not a production service), the defaults are cost-optimized — if MicroFoundry goes down, existing applications keep running on Kubernetes; only new deployments are temporarily blocked.
+
+### Deployment Options
+
+| Platform | Architecture | Estimated Cost |
+|---|---|---|
+| **AWS ECS Fargate + EKS** | Fargate control plane + EKS workloads | ~$108/month (default) |
+| **AWS ECS Fargate only** | Connect to existing EKS cluster | ~$20/month |
+| **AWS EKS** | Helm install on EKS | Depends on cluster |
+| **GCP GKE** | Helm install on GKE Autopilot/Standard | Depends on cluster |
+| **Azure AKS** | Helm install on AKS | Depends on cluster |
+| **Local K8s** | Docker Desktop / kind / minikube | Free |
+
+### AWS ECS Fargate Quick Start
+
+```bash
+# Configure
+cd deploy/packages/aws-ecs-fargate/terraform
+cat > terraform.tfvars <<EOF
+domain     = "apps.example.com"
+mf_version = "0.1.0"
+EOF
+
+# Deploy (~$108/month with cost-optimized defaults)
+cd .. && ./install.sh
+```
+
+Default configuration uses FARGATE_SPOT (0.25 vCPU, 512 MiB) and a single t3.small EKS node. See [deploy/packages/aws-ecs-fargate/](deploy/packages/aws-ecs-fargate/) for full documentation.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology | Purpose |
@@ -520,7 +560,7 @@ microfoundry/
 │   │   └── middleware.go      #     HTTP metrics middleware
 │   ├── secrets/               #   K8s Secret management
 │   ├── service/               #   Service broker + catalog + provisioning
-│   │   ├── catalog.go         #     10 service types, 3 plans each
+│   │   ├── catalog.go         #     17 service types (10 local + 7 AWS)
 │   │   ├── provisioner.go     #     K8s-native provisioning (StatefulSet, PVC)
 │   │   ├── binder.go          #     VCAP_SERVICES injection
 │   │   └── visibility.go      #     Plan visibility toggle

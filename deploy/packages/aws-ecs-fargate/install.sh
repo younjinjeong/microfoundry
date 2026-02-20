@@ -6,9 +6,14 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 # This script provisions the complete hybrid infrastructure:
 #   - VPC with public/private subnets
-#   - ECS Fargate cluster (MicroFoundry control plane)
-#   - EKS cluster (application workloads)
+#   - ECS Fargate cluster (MicroFoundry control plane, FARGATE_SPOT by default)
+#   - EKS cluster (application workloads, 1x t3.small by default)
 #   - ALB, ECR, EFS, IAM roles, CloudWatch
+#
+# Cost-optimized defaults (~$108/month):
+#   MicroFoundry is a developer tool — if it goes down, running apps are
+#   unaffected; only new deploys are temporarily blocked. Defaults use
+#   FARGATE_SPOT (0.25 vCPU, 512 MiB) and a single t3.small EKS node.
 #
 # Usage:
 #   ./install.sh                    # Interactive — prompts terraform apply
@@ -145,6 +150,8 @@ echo "    ${KUBECONFIG_CMD}"
 echo ""
 echo "  View Fargate logs:"
 echo "    aws logs tail /ecs/microfoundry --follow"
+echo ""
+echo "  Estimated cost:  ~\$108/month (FARGATE_SPOT + 1x t3.small EKS node)"
 echo ""
 echo "  Next steps:"
 echo "    1. Push the MicroFoundry image to ECR:"

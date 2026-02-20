@@ -90,6 +90,17 @@ plan_storage_gb = %d
 `, instanceName, e.k8sClient.Namespace, password, k8sName,
 		plan.Resources.MemoryMB, plan.Resources.CPUMillis, plan.Resources.StorageGB)
 
+	// Inject AWS-specific vars when running on AWS (Fargate / EC2)
+	if region := os.Getenv("AWS_DEFAULT_REGION"); region != "" {
+		tfvars += fmt.Sprintf("aws_region = %q\n", region)
+	}
+	if vpcID := os.Getenv("MF_VPC_ID"); vpcID != "" {
+		tfvars += fmt.Sprintf("vpc_id = %q\n", vpcID)
+	}
+	if subnetIDs := os.Getenv("MF_SUBNET_IDS"); subnetIDs != "" {
+		tfvars += fmt.Sprintf("subnet_ids = %s\n", subnetIDs)
+	}
+
 	if err := os.WriteFile(filepath.Join(workDir, "terraform.tfvars"), []byte(tfvars), 0644); err != nil {
 		return nil, fmt.Errorf("writing terraform.tfvars: %w", err)
 	}

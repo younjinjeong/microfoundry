@@ -80,6 +80,57 @@ func Catalog() []models.ServiceType {
 			Tags:  []string{"nginx", "http", "reverse-proxy", "gateway"},
 			Plans: gatewayPlans("Nginx"),
 		},
+
+		// ── AWS Managed Services (provisioned via Terraform topologies) ──
+		{
+			ID: "aws-rds-postgresql", Name: "Amazon RDS PostgreSQL", Label: "aws-rds-postgresql",
+			Description: "Managed PostgreSQL with automated backups, Multi-AZ, and read replicas",
+			Provider: "aws", Category: "database",
+			Tags:  []string{"aws", "rds", "postgresql", "managed", "database"},
+			Plans: awsDBPlans("RDS PostgreSQL"),
+		},
+		{
+			ID: "aws-rds-mysql", Name: "Amazon RDS MySQL", Label: "aws-rds-mysql",
+			Description: "Managed MySQL with automated backups and Multi-AZ failover",
+			Provider: "aws", Category: "database",
+			Tags:  []string{"aws", "rds", "mysql", "managed", "database"},
+			Plans: awsDBPlans("RDS MySQL"),
+		},
+		{
+			ID: "aws-elasticache-redis", Name: "Amazon ElastiCache Redis", Label: "aws-elasticache-redis",
+			Description: "Managed Redis with replication, persistence, and cluster mode",
+			Provider: "aws", Category: "cache",
+			Tags:  []string{"aws", "elasticache", "redis", "managed", "cache"},
+			Plans: awsCachePlans("ElastiCache Redis"),
+		},
+		{
+			ID: "aws-elasticache-memcached", Name: "Amazon ElastiCache Memcached", Label: "aws-elasticache-memcached",
+			Description: "Managed Memcached for simple distributed caching",
+			Provider: "aws", Category: "cache",
+			Tags:  []string{"aws", "elasticache", "memcached", "managed", "cache"},
+			Plans: awsCachePlans("ElastiCache Memcached"),
+		},
+		{
+			ID: "aws-msk", Name: "Amazon MSK", Label: "aws-msk",
+			Description: "Managed Apache Kafka with built-in monitoring and security",
+			Provider: "aws", Category: "messaging",
+			Tags:  []string{"aws", "msk", "kafka", "managed", "messaging"},
+			Plans: awsMessagingPlans("MSK"),
+		},
+		{
+			ID: "aws-s3", Name: "Amazon S3", Label: "aws-s3",
+			Description: "Scalable object storage with lifecycle policies",
+			Provider: "aws", Category: "storage",
+			Tags:  []string{"aws", "s3", "object-storage", "managed", "storage"},
+			Plans: awsStoragePlans("S3"),
+		},
+		{
+			ID: "aws-opensearch", Name: "Amazon OpenSearch", Label: "aws-opensearch",
+			Description: "Managed OpenSearch for log analytics and full-text search",
+			Provider: "aws", Category: "database",
+			Tags:  []string{"aws", "opensearch", "elasticsearch", "managed", "search"},
+			Plans: awsSearchPlans("OpenSearch"),
+		},
 	}
 }
 
@@ -135,6 +186,63 @@ func gatewayPlans(name string) []models.ServicePlan {
 			Resources: models.PlanResources{MemoryMB: 512, CPUMillis: 500}, CostEstimate: "Free (local)"},
 		{ID: "large", Name: "Large (Production)", Description: "Production resources — " + name,
 			Resources: models.PlanResources{MemoryMB: 1024, CPUMillis: 1000}, CostEstimate: "Free (local)"},
+	}
+}
+
+// ── AWS plan builders ────────────────────────────────────────────────────────
+
+func awsDBPlans(name string) []models.ServicePlan {
+	return []models.ServicePlan{
+		{ID: "small", Name: "db.t3.micro", Description: "1 vCPU, 1 GiB RAM, 20 GB — " + name,
+			Resources: models.PlanResources{MemoryMB: 1024, CPUMillis: 1000, StorageGB: 20}, CostEstimate: "~$15/month"},
+		{ID: "medium", Name: "db.t3.medium", Description: "2 vCPU, 4 GiB RAM, 100 GB — " + name,
+			Resources: models.PlanResources{MemoryMB: 4096, CPUMillis: 2000, StorageGB: 100}, CostEstimate: "~$70/month"},
+		{ID: "large", Name: "db.r6g.large", Description: "2 vCPU, 16 GiB RAM, 500 GB, Multi-AZ — " + name,
+			Resources: models.PlanResources{MemoryMB: 16384, CPUMillis: 2000, StorageGB: 500}, CostEstimate: "~$350/month"},
+	}
+}
+
+func awsCachePlans(name string) []models.ServicePlan {
+	return []models.ServicePlan{
+		{ID: "small", Name: "cache.t3.micro", Description: "1 vCPU, 0.5 GiB — " + name,
+			Resources: models.PlanResources{MemoryMB: 512, CPUMillis: 1000}, CostEstimate: "~$12/month"},
+		{ID: "medium", Name: "cache.t3.medium", Description: "2 vCPU, 3 GiB — " + name,
+			Resources: models.PlanResources{MemoryMB: 3072, CPUMillis: 2000}, CostEstimate: "~$50/month"},
+		{ID: "large", Name: "cache.r6g.large", Description: "2 vCPU, 13 GiB, replication — " + name,
+			Resources: models.PlanResources{MemoryMB: 13312, CPUMillis: 2000}, CostEstimate: "~$200/month"},
+	}
+}
+
+func awsMessagingPlans(name string) []models.ServicePlan {
+	return []models.ServicePlan{
+		{ID: "small", Name: "kafka.t3.small", Description: "2 brokers, 100 GB — " + name,
+			Resources: models.PlanResources{MemoryMB: 2048, CPUMillis: 2000, StorageGB: 100}, CostEstimate: "~$150/month"},
+		{ID: "medium", Name: "kafka.m5.large", Description: "3 brokers, 500 GB — " + name,
+			Resources: models.PlanResources{MemoryMB: 8192, CPUMillis: 2000, StorageGB: 500}, CostEstimate: "~$450/month"},
+		{ID: "large", Name: "kafka.m5.2xlarge", Description: "3 brokers, 1 TB, tiered storage — " + name,
+			Resources: models.PlanResources{MemoryMB: 32768, CPUMillis: 8000, StorageGB: 1000}, CostEstimate: "~$1200/month"},
+	}
+}
+
+func awsStoragePlans(name string) []models.ServicePlan {
+	return []models.ServicePlan{
+		{ID: "small", Name: "Standard", Description: "Standard storage, 5 GB — " + name,
+			Resources: models.PlanResources{StorageGB: 5}, CostEstimate: "~$0.12/month"},
+		{ID: "medium", Name: "Standard-IA", Description: "Infrequent Access, 100 GB — " + name,
+			Resources: models.PlanResources{StorageGB: 100}, CostEstimate: "~$1.25/month"},
+		{ID: "large", Name: "Intelligent-Tiering", Description: "Auto-tiered, 1 TB — " + name,
+			Resources: models.PlanResources{StorageGB: 1000}, CostEstimate: "~$23/month"},
+	}
+}
+
+func awsSearchPlans(name string) []models.ServicePlan {
+	return []models.ServicePlan{
+		{ID: "small", Name: "t3.small.search", Description: "1 node, 10 GB — " + name,
+			Resources: models.PlanResources{MemoryMB: 2048, CPUMillis: 1000, StorageGB: 10}, CostEstimate: "~$25/month"},
+		{ID: "medium", Name: "m6g.large.search", Description: "2 nodes, 100 GB — " + name,
+			Resources: models.PlanResources{MemoryMB: 8192, CPUMillis: 2000, StorageGB: 100}, CostEstimate: "~$180/month"},
+		{ID: "large", Name: "r6g.xlarge.search", Description: "3 nodes, 500 GB, Multi-AZ — " + name,
+			Resources: models.PlanResources{MemoryMB: 32768, CPUMillis: 4000, StorageGB: 500}, CostEstimate: "~$650/month"},
 	}
 }
 

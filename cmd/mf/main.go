@@ -49,6 +49,7 @@ func main() {
 		usersCmd(),
 		orgsCmd(),
 		workspacesCmd(),
+		topologyCmd(),
 		setupRoot,
 	)
 
@@ -68,8 +69,11 @@ func newK8sClient() (*k8s.Client, error) {
 	if !ok {
 		return nil, fmt.Errorf("no active cluster configured")
 	}
-	return k8s.NewClient(cluster.Context, cluster.Namespace, cluster.Domain,
-		k8s.WithIngressClass(cluster.IngressClass))
+	opts := []k8s.ClientOption{k8s.WithIngressClass(cluster.IngressClass)}
+	if cluster.EKSClusterName != "" {
+		opts = append(opts, k8s.WithEKSCluster(cluster.EKSClusterName, cluster.Region))
+	}
+	return k8s.NewClient(cluster.Context, cluster.Namespace, cluster.Domain, opts...)
 }
 
 func versionCmd() *cobra.Command {

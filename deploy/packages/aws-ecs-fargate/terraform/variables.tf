@@ -78,6 +78,17 @@ variable "eks_cluster_version" {
   default     = "1.29"
 }
 
+# -- Multi-Cluster Support -----------------------------------------------------
+
+variable "additional_eks_clusters" {
+  description = "Additional EKS cluster ARNs that MicroFoundry should manage. The ECS task role will be granted EKS admin access to these clusters."
+  type = list(object({
+    cluster_arn  = string
+    cluster_name = string
+  }))
+  default = []
+}
+
 # -- Tags ----------------------------------------------------------------------
 
 variable "tags" {

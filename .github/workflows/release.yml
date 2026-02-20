@@ -106,6 +106,52 @@ jobs:
           name: helm-chart
           path: "*.tgz"
 
+  # ── Push image to AWS ECR (optional — requires AWS vars) ─
+  ecr-push:
+    needs: docker
+    runs-on: ubuntu-latest
+    if: vars.AWS_ACCOUNT_ID != ''
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+      - name: Pull from GHCR and push to ECR
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          GHCR_IMAGE="ghcr.io/${{ env.IMAGE_NAME }}:${VERSION}"
+          ECR_IMAGE="${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/microfoundry/mf:${VERSION}"
+          docker pull "${GHCR_IMAGE}"
+          docker tag "${GHCR_IMAGE}" "${ECR_IMAGE}"
+          docker push "${ECR_IMAGE}"
+          # Also tag as latest
+          docker tag "${GHCR_IMAGE}" "${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/microfoundry/mf:latest"
+          docker push "${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/microfoundry/mf:latest"
+
+  # ── Deploy to ECS Fargate (optional — requires AWS vars) ─
+  deploy-ecs:
+    needs: ecr-push
+    runs-on: ubuntu-latest
+    if: vars.AWS_ACCOUNT_ID != ''
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      - name: Update ECS service (force new deployment)
+        run: |
+          aws ecs update-service \
+            --cluster microfoundry-cluster \
+            --service microfoundry-admin \
+            --force-new-deployment
+      - name: Wait for deployment to stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster microfoundry-cluster \
+            --services microfoundry-admin
+
   # ── Build deployment packages per CSP ──────────────────
   deployment-packages:
     needs: [goreleaser, helm]

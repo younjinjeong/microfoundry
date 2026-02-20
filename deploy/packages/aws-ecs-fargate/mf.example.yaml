@@ -2,7 +2,7 @@
 # MicroFoundry Configuration — AWS ECS Fargate + EKS Hybrid Deployment
 # -----------------------------------------------------------------------------
 # This configuration runs the MicroFoundry control plane on ECS Fargate
-# while managing application workloads on a remote EKS cluster.
+# while managing application workloads on one or more remote EKS clusters.
 #
 # Place this file at /etc/microfoundry/mf.yaml inside the Fargate container
 # (mounted via EFS), or set MF_CONFIG_DIR to point to its directory.
@@ -13,20 +13,39 @@ github:
   repo: ""
 
 kubernetes:
-  active: "eks"
+  active: "dev-eks"
   clusters:
-    eks:
-      name: "EKS Workload Cluster"
-      # The EKS context is resolved automatically via IAM role when running on Fargate.
-      # If connecting externally, use: arn:aws:eks:<region>:<account-id>:cluster/<cluster-name>
-      context: ""
+    dev-eks:
+      name: "Development (EKS)"
+      eks_cluster_name: "microfoundry-eks"  # Terraform output: module.eks.cluster_name
       namespace: "microfoundry"
-      domain: ""          # Set to your domain, e.g. "apps.example.com"
+      domain: ""          # Set to your domain, e.g. "dev.apps.example.com"
       provider: "eks"
       region: "us-east-1"
       enabled: true
       tls: false
       ingress_class: "nginx"
+
+    # --- Multi-cluster example (uncomment to add more EKS clusters) ---
+    # staging-eks:
+    #   name: "Staging (EKS)"
+    #   eks_cluster_name: "microfoundry-staging-eks"
+    #   namespace: "microfoundry"
+    #   domain: "staging.apps.example.com"
+    #   provider: "eks"
+    #   region: "us-west-2"
+    #   enabled: true
+    #   ingress_class: "nginx"
+    #
+    # prod-eks:
+    #   name: "Production (EKS)"
+    #   eks_cluster_name: "microfoundry-prod-eks"
+    #   namespace: "microfoundry"
+    #   domain: "apps.example.com"
+    #   provider: "eks"
+    #   region: "us-east-1"
+    #   enabled: true
+    #   ingress_class: "alb"
 
 admin:
   port: 8080

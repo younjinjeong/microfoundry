@@ -424,6 +424,105 @@ resource "aws_iam_role_policy" "ecs_task_eks_access" {
   })
 }
 
+# Grant MicroFoundry permissions to provision CSP-native services via Terraform
+resource "aws_iam_role_policy" "ecs_task_csp_provisioning" {
+  name = "${local.name}-csp-provisioning"
+  role = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "RDSProvisioning"
+        Effect = "Allow"
+        Action = [
+          "rds:CreateDBInstance", "rds:DescribeDBInstances",
+          "rds:ModifyDBInstance", "rds:DeleteDBInstance",
+          "rds:CreateDBSubnetGroup", "rds:DeleteDBSubnetGroup",
+          "rds:DescribeDBSubnetGroups",
+          "rds:AddTagsToResource", "rds:ListTagsForResource",
+        ]
+        Resource = "arn:aws:rds:${var.region}:${data.aws_caller_identity.current.account_id}:*"
+      },
+      {
+        Sid    = "ElastiCacheProvisioning"
+        Effect = "Allow"
+        Action = [
+          "elasticache:CreateCacheCluster", "elasticache:DescribeCacheClusters",
+          "elasticache:DeleteCacheCluster", "elasticache:CreateReplicationGroup",
+          "elasticache:DeleteReplicationGroup", "elasticache:DescribeReplicationGroups",
+          "elasticache:CreateCacheSubnetGroup", "elasticache:DeleteCacheSubnetGroup",
+          "elasticache:DescribeCacheSubnetGroups",
+          "elasticache:AddTagsToResource",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "MSKProvisioning"
+        Effect = "Allow"
+        Action = [
+          "kafka:CreateCluster", "kafka:DescribeCluster", "kafka:DescribeClusterV2",
+          "kafka:DeleteCluster", "kafka:GetBootstrapBrokers",
+          "kafka:CreateConfiguration", "kafka:TagResource",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "S3Provisioning"
+        Effect = "Allow"
+        Action = [
+          "s3:CreateBucket", "s3:DeleteBucket",
+          "s3:PutBucketPolicy", "s3:PutBucketTagging",
+          "s3:PutBucketVersioning", "s3:PutEncryptionConfiguration",
+          "s3:PutBucketPublicAccessBlock",
+          "s3:GetBucketLocation", "s3:GetBucketTagging",
+        ]
+        Resource = "arn:aws:s3:::mf-*"
+      },
+      {
+        Sid    = "S3IAMAccess"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateUser", "iam:DeleteUser",
+          "iam:CreateAccessKey", "iam:DeleteAccessKey",
+          "iam:PutUserPolicy", "iam:DeleteUserPolicy",
+          "iam:ListAccessKeys",
+        ]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/mf-s3-*"
+      },
+      {
+        Sid    = "OpenSearchProvisioning"
+        Effect = "Allow"
+        Action = [
+          "es:CreateDomain", "es:DescribeDomain", "es:DescribeDomains",
+          "es:DeleteDomain", "es:AddTags", "es:UpdateDomainConfig",
+        ]
+        Resource = "arn:aws:es:${var.region}:${data.aws_caller_identity.current.account_id}:domain/mf-*"
+      },
+      {
+        Sid    = "SecurityGroupManagement"
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateSecurityGroup", "ec2:DeleteSecurityGroup",
+          "ec2:AuthorizeSecurityGroupIngress", "ec2:RevokeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress", "ec2:RevokeSecurityGroupEgress",
+          "ec2:DescribeSecurityGroups", "ec2:DescribeSubnets", "ec2:DescribeVpcs",
+          "ec2:CreateTags",
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "STSForTokenGeneration"
+        Effect = "Allow"
+        Action = [
+          "sts:GetCallerIdentity",
+        ]
+        Resource = "*"
+      },
+    ]
+  })
+}
+
 # -----------------------------------------------------------------------------
 # EKS Cluster — Workload Target
 # -----------------------------------------------------------------------------
@@ -481,6 +580,28 @@ module "eks" {
   tags = {
     Component = "compute"
   }
+}
+
+# Grant the ECS task role access to additional EKS clusters (multi-cluster)
+resource "aws_iam_role_policy" "ecs_task_additional_eks" {
+  count = length(var.additional_eks_clusters) > 0 ? 1 : 0
+  name  = "${local.name}-additional-eks-access"
+  role  = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters",
+          "eks:AccessKubernetesApi",
+        ]
+        Resource = [for c in var.additional_eks_clusters : c.cluster_arn]
+      }
+    ]
+  })
 }
 
 # -----------------------------------------------------------------------------
@@ -567,6 +688,9 @@ resource "aws_ecs_task_definition" "mf_admin" {
         { name = "MF_EKS_REGION", value = var.region },
         { name = "MF_CONFIG_DIR", value = local.mf_config_mount },
         { name = "AWS_DEFAULT_REGION", value = var.region },
+        { name = "MF_VPC_ID", value = module.vpc.vpc_id },
+        { name = "MF_SUBNET_IDS", value = jsonencode(module.vpc.private_subnets) },
+        { name = "MF_AWS_ACCOUNT", value = data.aws_caller_identity.current.account_id },
       ]
 
       logConfiguration = {
@@ -635,14 +759,63 @@ resource "aws_lb_target_group" "mf_admin" {
   }
 }
 
+# ACM certificate for HTTPS (created only when domain is provided)
+resource "aws_acm_certificate" "mf" {
+  count             = var.domain != "" ? 1 : 0
+  domain_name       = var.domain
+  subject_alternative_names = ["*.${var.domain}"]
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Name      = "${local.name}-cert"
+    Component = "networking"
+  }
+}
+
+# HTTPS listener (when domain + ACM cert are available)
+resource "aws_lb_listener" "https" {
+  count             = var.domain != "" ? 1 : 0
+  load_balancer_arn = aws_lb.mf.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate.mf[0].arn
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.mf_admin.arn
+  }
+
+  tags = {
+    Component = "networking"
+  }
+}
+
+# HTTP listener — redirects to HTTPS when domain is set, otherwise forwards directly
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.mf.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.mf_admin.arn
+    type = var.domain != "" ? "redirect" : "forward"
+
+    # Forward (no domain — HTTP only)
+    target_group_arn = var.domain == "" ? aws_lb_target_group.mf_admin.arn : null
+
+    # Redirect HTTP → HTTPS (domain set)
+    dynamic "redirect" {
+      for_each = var.domain != "" ? [1] : []
+      content {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
   }
 
   tags = {
@@ -673,7 +846,7 @@ resource "aws_ecs_service" "mf_admin" {
     container_port   = 8080
   }
 
-  # Wait for the ALB listener to be ready before placing tasks
+  # Wait for ALB listeners to be ready before placing tasks
   depends_on = [
     aws_lb_listener.http,
     aws_efs_mount_target.mf_config,

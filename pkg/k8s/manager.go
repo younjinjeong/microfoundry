@@ -49,8 +49,11 @@ func (cm *ClientManager) GetClient(clusterID string) (*Client, error) {
 		return nil, fmt.Errorf("cluster %q not found", clusterID)
 	}
 
-	client, err := NewClient(cfg.Context, cfg.Namespace, cfg.Domain,
-		WithIngressClass(cfg.IngressClass))
+	opts := []ClientOption{WithIngressClass(cfg.IngressClass)}
+	if cfg.EKSClusterName != "" {
+		opts = append(opts, WithEKSCluster(cfg.EKSClusterName, cfg.Region))
+	}
+	client, err := NewClient(cfg.Context, cfg.Namespace, cfg.Domain, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to cluster %q: %w", clusterID, err)
 	}

@@ -87,15 +87,16 @@ type GitHubConfig struct {
 
 // ClusterConfig represents a registered Kubernetes cluster.
 type ClusterConfig struct {
-	Name         string `mapstructure:"name"          json:"name"`
-	Context      string `mapstructure:"context"       json:"context"`
-	Namespace    string `mapstructure:"namespace"     json:"namespace"`
-	Domain       string `mapstructure:"domain"        json:"domain"`
-	Provider     string `mapstructure:"provider"      json:"provider"`
-	Region       string `mapstructure:"region"        json:"region,omitempty"`
-	Enabled      bool   `mapstructure:"enabled"       json:"enabled"`
-	TLS          bool   `mapstructure:"tls"           json:"tls"`
-	IngressClass string `mapstructure:"ingress_class" json:"ingress_class,omitempty"`
+	Name           string `mapstructure:"name"             json:"name"`
+	Context        string `mapstructure:"context"          json:"context"`
+	Namespace      string `mapstructure:"namespace"        json:"namespace"`
+	Domain         string `mapstructure:"domain"           json:"domain"`
+	Provider       string `mapstructure:"provider"         json:"provider"`
+	Region         string `mapstructure:"region"           json:"region,omitempty"`
+	Enabled        bool   `mapstructure:"enabled"          json:"enabled"`
+	TLS            bool   `mapstructure:"tls"              json:"tls"`
+	IngressClass   string `mapstructure:"ingress_class"    json:"ingress_class,omitempty"`
+	EKSClusterName string `mapstructure:"eks_cluster_name" json:"eks_cluster_name,omitempty"`
 }
 
 type KubernetesConfig struct {

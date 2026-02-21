@@ -300,6 +300,10 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /settings/endpoints", s.SaveEndpointsHandler)
 	s.mux.HandleFunc("POST /settings/endpoints/{name}/ingress", s.CreateEndpointIngressHandler)
 	s.mux.HandleFunc("POST /settings/endpoints/{name}/test", s.TestEndpointHandler)
+	// Settings routes — Cloud Providers
+	s.mux.HandleFunc("GET /settings/cloud-providers", s.CloudProvidersSettingsHandler)
+	s.mux.HandleFunc("POST /settings/cloud-providers", s.SaveCloudProvidersHandler)
+	s.mux.HandleFunc("POST /settings/cloud-providers/{provider}/test", s.TestCloudProviderHandler)
 	// Settings routes — Platform (DNS, TLS, Environment)
 	s.mux.HandleFunc("GET /settings/platform", s.PlatformSettingsHandler)
 
@@ -365,6 +369,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /api/settings/smtp", s.APISaveSMTPHandler)
 	s.mux.HandleFunc("GET /api/settings/endpoints", s.APIGetEndpointsHandler)
 	s.mux.HandleFunc("PUT /api/settings/endpoints", s.APISaveEndpointsHandler)
+	s.mux.HandleFunc("GET /api/settings/cloud-providers", s.APIGetSettingsHandler) // reuse existing
+	s.mux.HandleFunc("PUT /api/settings/cloud-providers", s.SaveCloudProvidersHandler)
 
 	// Workspace routes
 	s.mux.HandleFunc("GET /workspaces", s.WorkspacesPageHandler)

@@ -101,10 +101,43 @@ var PlatformServices = []ServiceEndpoint{
 
 // PlatformSettings is the aggregate of all platform settings stored in ConfigMap.
 type PlatformSettings struct {
-	Registry  RegistryConfig  `json:"registry"`
-	Webhooks  []WebhookConfig `json:"webhooks"`
-	SMTP      SMTPConfig      `json:"smtp"`
-	Endpoints EndpointsConfig `json:"endpoints,omitempty"`
+	Registry       RegistryConfig      `json:"registry"`
+	Webhooks       []WebhookConfig     `json:"webhooks"`
+	SMTP           SMTPConfig          `json:"smtp"`
+	Endpoints      EndpointsConfig     `json:"endpoints,omitempty"`
+	CloudProviders CloudProviderConfig `json:"cloud_providers,omitempty"`
+}
+
+// CloudProviderConfig holds credentials and settings for cloud service providers.
+type CloudProviderConfig struct {
+	AWS   AWSConfig   `json:"aws"`
+	GCP   GCPConfig   `json:"gcp"`
+	Azure AzureConfig `json:"azure"`
+}
+
+// AWSConfig holds AWS authentication settings.
+type AWSConfig struct {
+	Enabled     bool   `json:"enabled"`
+	Region      string `json:"region"`
+	AccessKeyID string `json:"access_key_id"`
+	AssumeRole  string `json:"assume_role,omitempty"`
+}
+
+// GCPConfig holds GCP authentication settings.
+type GCPConfig struct {
+	Enabled   bool   `json:"enabled"`
+	ProjectID string `json:"project_id"`
+	Region    string `json:"region"`
+}
+
+// AzureConfig holds Azure authentication settings.
+type AzureConfig struct {
+	Enabled        bool   `json:"enabled"`
+	TenantID       string `json:"tenant_id"`
+	ClientID       string `json:"client_id"`
+	SubscriptionID string `json:"subscription_id"`
+	ResourceGroup  string `json:"resource_group"`
+	Location       string `json:"location"`
 }
 
 // WebhookEventTypes lists all supported event types for webhook subscriptions.

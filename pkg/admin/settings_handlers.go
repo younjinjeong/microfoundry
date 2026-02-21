@@ -853,3 +853,124 @@ func (s *Server) PlatformSettingsHandler(w http.ResponseWriter, r *http.Request)
 	data.Content = content
 	s.templates.Render(w, "settings_platform.html", data)
 }
+
+// --- Cloud Providers ---
+
+// CloudProvidersSettingsHandler renders the CSP authentication settings page.
+func (s *Server) CloudProvidersSettingsHandler(w http.ResponseWriter, r *http.Request) {
+	store, err := s.settingsStore(r)
+	if err != nil {
+		http.Error(w, "No cluster available: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx := r.Context()
+	ps, _ := store.Get(ctx)
+	hasAWSSecret, _ := store.GetCredential(ctx, "aws-secret-access-key")
+	hasGCPSecret, _ := store.GetCredential(ctx, "gcp-service-account-json")
+	hasAzureSecret, _ := store.GetCredential(ctx, "azure-client-secret")
+
+	data := s.pageDataWithUser(r, "Cloud Providers", "settings-csp")
+	data.Content = map[string]any{
+		"Config":         ps.CloudProviders,
+		"HasAWSSecret":   hasAWSSecret != "",
+		"HasGCPSecret":   hasGCPSecret != "",
+		"HasAzureSecret": hasAzureSecret != "",
+		"Saved":          r.URL.Query().Get("saved") == "true",
+	}
+	s.templates.Render(w, "settings_csp.html", data)
+}
+
+// SaveCloudProvidersHandler persists CSP settings to K8s ConfigMap + Secret.
+func (s *Server) SaveCloudProvidersHandler(w http.ResponseWriter, r *http.Request) {
+	store, err := s.settingsStore(r)
+	if err != nil {
+		http.Error(w, "No cluster available: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	cfg := models.CloudProviderConfig{
+		AWS: models.AWSConfig{
+			Enabled:     r.FormValue("aws_enabled") == "true",
+			Region:      r.FormValue("aws_region"),
+			AccessKeyID: r.FormValue("aws_access_key_id"),
+			AssumeRole:  r.FormValue("aws_assume_role"),
+		},
+		GCP: models.GCPConfig{
+			Enabled:   r.FormValue("gcp_enabled") == "true",
+			ProjectID: r.FormValue("gcp_project_id"),
+			Region:    r.FormValue("gcp_region"),
+		},
+		Azure: models.AzureConfig{
+			Enabled:        r.FormValue("azure_enabled") == "true",
+			TenantID:       r.FormValue("azure_tenant_id"),
+			ClientID:       r.FormValue("azure_client_id"),
+			SubscriptionID: r.FormValue("azure_subscription_id"),
+			ResourceGroup:  r.FormValue("azure_resource_group"),
+			Location:       r.FormValue("azure_location"),
+		},
+	}
+
+	secrets := map[string]string{
+		"aws-secret-access-key":    r.FormValue("aws_secret_access_key"),
+		"gcp-service-account-json": r.FormValue("gcp_service_account_json"),
+		"azure-client-secret":      r.FormValue("azure_client_secret"),
+	}
+
+	if err := store.SaveCloudProviders(r.Context(), cfg, secrets); err != nil {
+		http.Error(w, "Failed to save: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/settings/cloud-providers?saved=true", http.StatusSeeOther)
+}
+
+// TestCloudProviderHandler tests connectivity for a cloud provider.
+func (s *Server) TestCloudProviderHandler(w http.ResponseWriter, r *http.Request) {
+	provider := r.PathValue("provider")
+	var msg string
+
+	switch provider {
+	case "aws":
+		region := r.FormValue("aws_region")
+		accessKey := r.FormValue("aws_access_key_id")
+		secretKey := r.FormValue("aws_secret_access_key")
+		if region == "" || accessKey == "" {
+			msg = `<span class="text-red-600">AWS Region and Access Key ID are required.</span>`
+		} else if secretKey == "" {
+			store, err := s.settingsStore(r)
+			if err != nil {
+				msg = `<span class="text-red-600">No cluster available.</span>`
+			} else {
+				secretKey, _ = store.GetCredential(r.Context(), "aws-secret-access-key")
+				if secretKey == "" {
+					msg = `<span class="text-red-600">Secret Access Key is required.</span>`
+				} else {
+					msg = fmt.Sprintf(`<span class="text-green-600">AWS credentials configured (region: %s). Full validation requires aws-sdk-go.</span>`, region)
+				}
+			}
+		} else {
+			msg = fmt.Sprintf(`<span class="text-green-600">AWS credentials configured (region: %s). Full validation requires aws-sdk-go.</span>`, region)
+		}
+	case "gcp":
+		projectID := r.FormValue("gcp_project_id")
+		if projectID == "" {
+			msg = `<span class="text-red-600">GCP Project ID is required.</span>`
+		} else {
+			msg = fmt.Sprintf(`<span class="text-green-600">GCP credentials configured (project: %s). Full validation requires google-cloud-go.</span>`, projectID)
+		}
+	case "azure":
+		tenantID := r.FormValue("azure_tenant_id")
+		clientID := r.FormValue("azure_client_id")
+		if tenantID == "" || clientID == "" {
+			msg = `<span class="text-red-600">Azure Tenant ID and Client ID are required.</span>`
+		} else {
+			msg = fmt.Sprintf(`<span class="text-green-600">Azure credentials configured (tenant: %s). Full validation requires azure-sdk-for-go.</span>`, tenantID)
+		}
+	default:
+		msg = `<span class="text-red-600">Unknown provider.</span>`
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, msg)
+}

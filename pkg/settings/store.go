@@ -96,6 +96,25 @@ func (s *Store) SaveEndpoints(ctx context.Context, cfg models.EndpointsConfig) e
 	})
 }
 
+// SaveCloudProviders saves cloud provider configuration. Secrets go to Secret, rest to ConfigMap.
+func (s *Store) SaveCloudProviders(ctx context.Context, cfg models.CloudProviderConfig, secrets map[string]string) error {
+	if err := s.update(ctx, func(settings *models.PlatformSettings) {
+		settings.CloudProviders = cfg
+	}); err != nil {
+		return err
+	}
+
+	// Store sensitive credentials in K8s Secret
+	for key, value := range secrets {
+		if value != "" {
+			if err := s.updateSecret(ctx, key, value); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // GetCredential retrieves a single credential from the platform Secret.
 func (s *Store) GetCredential(ctx context.Context, key string) (string, error) {
 	secAPI := s.k8sClient.Clientset.CoreV1().Secrets(s.k8sClient.Namespace)

@@ -1,0 +1,290 @@
+{{define "settings_csp.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+{{$c := .Content}}
+<div class="max-w-3xl mx-auto">
+    {{if index $c "Saved"}}
+    <div class="mb-6 rounded-md bg-green-50 p-4 border border-green-200">
+        <div class="flex">
+            <svg class="h-5 w-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <p class="text-sm font-medium text-green-800">Cloud provider settings saved successfully.</p>
+        </div>
+    </div>
+    {{end}}
+
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Cloud Provider Authentication</h3>
+            <p class="mt-1 text-sm text-gray-500">Configure credentials for cloud providers used by service provisioning and cluster management.</p>
+        </div>
+
+        <form action="/settings/cloud-providers" method="POST" class="p-6 space-y-5">
+            <!-- Tab Navigation -->
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-6" aria-label="Provider tabs">
+                    <button type="button" id="tab-aws"
+                            onclick="switchTab('aws')"
+                            class="tab-btn whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-blue-500 text-blue-600">
+                        AWS
+                    </button>
+                    <button type="button" id="tab-gcp"
+                            onclick="switchTab('gcp')"
+                            class="tab-btn whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700">
+                        GCP
+                    </button>
+                    <button type="button" id="tab-azure"
+                            onclick="switchTab('azure')"
+                            class="tab-btn whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700">
+                        Azure
+                    </button>
+                </nav>
+            </div>
+
+            <!-- AWS Panel -->
+            <div id="panel-aws" class="tab-panel space-y-5">
+                <div class="flex items-center">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="aws_enabled" value="true" {{if (index $c "AWS").Enabled}}checked{{end}}
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
+                        <span class="ml-2 text-sm text-gray-700" data-tooltip="Enable AWS as a cloud provider for provisioning" data-tooltip-pos="top">Enable AWS</span>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="aws-region" class="block text-sm font-medium text-gray-700 mb-1">Region</label>
+                        <input type="text" id="aws-region" name="aws_region" value="{{if (index $c "AWS").Region}}{{(index $c "AWS").Region}}{{else}}us-east-1{{end}}"
+                               placeholder="us-east-1"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">Default AWS region for resource provisioning.</p>
+                    </div>
+                    <div>
+                        <label for="aws-access-key-id" class="block text-sm font-medium text-gray-700 mb-1">Access Key ID</label>
+                        <input type="text" id="aws-access-key-id" name="aws_access_key_id" value="{{(index $c "AWS").AccessKeyID}}"
+                               placeholder="AKIAIOSFODNN7EXAMPLE"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">IAM user or service account access key.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="aws-secret-access-key" class="block text-sm font-medium text-gray-700 mb-1">Secret Access Key</label>
+                    <input type="password" id="aws-secret-access-key" name="aws_secret_access_key"
+                           placeholder="{{if index $c "AWSHasSecret"}}(leave blank to keep existing){{else}}Enter secret access key{{end}}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    {{if index $c "AWSHasSecret"}}
+                    <p class="mt-1 text-xs text-gray-500">A secret access key is currently set. Leave blank to keep it unchanged.</p>
+                    {{end}}
+                </div>
+
+                <div>
+                    <label for="aws-assume-role-arn" class="block text-sm font-medium text-gray-700 mb-1">
+                        Assume Role ARN
+                        <span class="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <input type="text" id="aws-assume-role-arn" name="aws_assume_role_arn" value="{{(index $c "AWS").AssumeRoleARN}}"
+                           placeholder="arn:aws:iam::123456789012:role/MicroFoundryRole"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <p class="mt-1 text-xs text-gray-500">If set, MicroFoundry will assume this IAM role for all AWS operations.</p>
+                </div>
+
+                <!-- AWS Test Connection -->
+                <div class="border-t border-gray-200 pt-5">
+                    <div class="flex items-center space-x-3">
+                        <button type="button"
+                                hx-post="/settings/cloud-providers/aws/test"
+                                hx-include="closest form"
+                                hx-target="#aws-test-result"
+                                hx-swap="innerHTML"
+                                data-tooltip="Verify AWS credentials by calling STS GetCallerIdentity" data-tooltip-pos="top"
+                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Test Connection
+                        </button>
+                        <div id="aws-test-result" class="text-sm"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GCP Panel -->
+            <div id="panel-gcp" class="tab-panel space-y-5 hidden">
+                <div class="flex items-center">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="gcp_enabled" value="true" {{if (index $c "GCP").Enabled}}checked{{end}}
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
+                        <span class="ml-2 text-sm text-gray-700" data-tooltip="Enable GCP as a cloud provider for provisioning" data-tooltip-pos="top">Enable GCP</span>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="gcp-project-id" class="block text-sm font-medium text-gray-700 mb-1">Project ID</label>
+                        <input type="text" id="gcp-project-id" name="gcp_project_id" value="{{(index $c "GCP").ProjectID}}"
+                               placeholder="my-gcp-project-123"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">The GCP project ID where resources will be provisioned.</p>
+                    </div>
+                    <div>
+                        <label for="gcp-region" class="block text-sm font-medium text-gray-700 mb-1">Region</label>
+                        <input type="text" id="gcp-region" name="gcp_region" value="{{if (index $c "GCP").Region}}{{(index $c "GCP").Region}}{{else}}us-central1{{end}}"
+                               placeholder="us-central1"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">Default GCP region for resource provisioning.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="gcp-service-account-json" class="block text-sm font-medium text-gray-700 mb-1">Service Account JSON</label>
+                    <textarea id="gcp-service-account-json" name="gcp_service_account_json" rows="6"
+                              placeholder='{"type": "service_account", "project_id": "...", ...}'
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{(index $c "GCP").ServiceAccountJSON}}</textarea>
+                    <p class="mt-1 text-xs text-gray-500">Paste the full JSON key file contents for a GCP service account.</p>
+                </div>
+
+                <!-- GCP Test Connection -->
+                <div class="border-t border-gray-200 pt-5">
+                    <div class="flex items-center space-x-3">
+                        <button type="button"
+                                hx-post="/settings/cloud-providers/gcp/test"
+                                hx-include="closest form"
+                                hx-target="#gcp-test-result"
+                                hx-swap="innerHTML"
+                                data-tooltip="Verify GCP credentials by listing accessible projects" data-tooltip-pos="top"
+                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Test Connection
+                        </button>
+                        <div id="gcp-test-result" class="text-sm"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Azure Panel -->
+            <div id="panel-azure" class="tab-panel space-y-5 hidden">
+                <div class="flex items-center">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="azure_enabled" value="true" {{if (index $c "Azure").Enabled}}checked{{end}}
+                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
+                        <span class="ml-2 text-sm text-gray-700" data-tooltip="Enable Azure as a cloud provider for provisioning" data-tooltip-pos="top">Enable Azure</span>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="azure-tenant-id" class="block text-sm font-medium text-gray-700 mb-1">Tenant ID</label>
+                        <input type="text" id="azure-tenant-id" name="azure_tenant_id" value="{{(index $c "Azure").TenantID}}"
+                               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">Azure Active Directory tenant ID.</p>
+                    </div>
+                    <div>
+                        <label for="azure-client-id" class="block text-sm font-medium text-gray-700 mb-1">Client ID</label>
+                        <input type="text" id="azure-client-id" name="azure_client_id" value="{{(index $c "Azure").ClientID}}"
+                               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">Application (client) ID of the Azure service principal.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="azure-client-secret" class="block text-sm font-medium text-gray-700 mb-1">Client Secret</label>
+                    <input type="password" id="azure-client-secret" name="azure_client_secret"
+                           placeholder="{{if index $c "AzureHasSecret"}}(leave blank to keep existing){{else}}Enter client secret{{end}}"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    {{if index $c "AzureHasSecret"}}
+                    <p class="mt-1 text-xs text-gray-500">A client secret is currently set. Leave blank to keep it unchanged.</p>
+                    {{end}}
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="azure-subscription-id" class="block text-sm font-medium text-gray-700 mb-1">Subscription ID</label>
+                        <input type="text" id="azure-subscription-id" name="azure_subscription_id" value="{{(index $c "Azure").SubscriptionID}}"
+                               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">Azure subscription used for billing and resource scoping.</p>
+                    </div>
+                    <div>
+                        <label for="azure-resource-group" class="block text-sm font-medium text-gray-700 mb-1">Resource Group</label>
+                        <input type="text" id="azure-resource-group" name="azure_resource_group" value="{{(index $c "Azure").ResourceGroup}}"
+                               placeholder="microfoundry-rg"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">Default resource group for provisioned resources.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="azure-location" class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <input type="text" id="azure-location" name="azure_location" value="{{if (index $c "Azure").Location}}{{(index $c "Azure").Location}}{{else}}eastus{{end}}"
+                           placeholder="eastus"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <p class="mt-1 text-xs text-gray-500">Default Azure region for resource provisioning.</p>
+                </div>
+
+                <!-- Azure Test Connection -->
+                <div class="border-t border-gray-200 pt-5">
+                    <div class="flex items-center space-x-3">
+                        <button type="button"
+                                hx-post="/settings/cloud-providers/azure/test"
+                                hx-include="closest form"
+                                hx-target="#azure-test-result"
+                                hx-swap="innerHTML"
+                                data-tooltip="Verify Azure credentials by checking subscription access" data-tooltip-pos="top"
+                                class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Test Connection
+                        </button>
+                        <div id="azure-test-result" class="text-sm"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="border-t border-gray-200 pt-5">
+                <div class="flex items-center space-x-3">
+                    <button type="submit"
+                            data-tooltip="Save all cloud provider settings to Kubernetes" data-tooltip-pos="top"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors">
+                        Save Cloud Provider Settings
+                    </button>
+                    <a href="/config"
+                       data-tooltip="Return without saving" data-tooltip-pos="top"
+                       class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function switchTab(provider) {
+    // Hide all panels
+    document.querySelectorAll('.tab-panel').forEach(function(panel) {
+        panel.classList.add('hidden');
+    });
+    // Reset all tab buttons
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+        btn.classList.remove('border-blue-500', 'text-blue-600');
+        btn.classList.add('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
+    });
+    // Show selected panel
+    document.getElementById('panel-' + provider).classList.remove('hidden');
+    // Activate selected tab
+    var activeTab = document.getElementById('tab-' + provider);
+    activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
+    activeTab.classList.add('border-blue-500', 'text-blue-600');
+}
+</script>
+{{end}}

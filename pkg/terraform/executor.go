@@ -90,8 +90,11 @@ plan_storage_gb = %d
 `, instanceName, e.k8sClient.Namespace, password, k8sName,
 		plan.Resources.MemoryMB, plan.Resources.CPUMillis, plan.Resources.StorageGB)
 
-	// Inject AWS-specific vars when running on AWS (Fargate / EC2)
+	// Inject cloud provider-specific vars from environment or settings.
+	// AWS: injected from Fargate task role env or MF_AWS_* settings.
 	if region := os.Getenv("AWS_DEFAULT_REGION"); region != "" {
+		tfvars += fmt.Sprintf("aws_region = %q\n", region)
+	} else if region := os.Getenv("MF_AWS_REGION"); region != "" {
 		tfvars += fmt.Sprintf("aws_region = %q\n", region)
 	}
 	if vpcID := os.Getenv("MF_VPC_ID"); vpcID != "" {
@@ -99,6 +102,34 @@ plan_storage_gb = %d
 	}
 	if subnetIDs := os.Getenv("MF_SUBNET_IDS"); subnetIDs != "" {
 		tfvars += fmt.Sprintf("subnet_ids = %s\n", subnetIDs)
+	}
+
+	// GCP: injected from MF_GCP_* settings.
+	if project := os.Getenv("MF_GCP_PROJECT"); project != "" {
+		tfvars += fmt.Sprintf("gcp_project = %q\n", project)
+	}
+	if region := os.Getenv("MF_GCP_REGION"); region != "" {
+		tfvars += fmt.Sprintf("gcp_region = %q\n", region)
+	}
+	if network := os.Getenv("MF_GCP_NETWORK"); network != "" {
+		tfvars += fmt.Sprintf("gcp_network = %q\n", network)
+	}
+
+	// Azure: injected from MF_AZURE_* settings.
+	if rg := os.Getenv("MF_AZURE_RESOURCE_GROUP"); rg != "" {
+		tfvars += fmt.Sprintf("azure_resource_group = %q\n", rg)
+	}
+	if loc := os.Getenv("MF_AZURE_LOCATION"); loc != "" {
+		tfvars += fmt.Sprintf("azure_location = %q\n", loc)
+	}
+	if sub := os.Getenv("MF_AZURE_SUBSCRIPTION_ID"); sub != "" {
+		tfvars += fmt.Sprintf("azure_subscription_id = %q\n", sub)
+	}
+	if vnet := os.Getenv("MF_AZURE_VNET_ID"); vnet != "" {
+		tfvars += fmt.Sprintf("azure_vnet_id = %q\n", vnet)
+	}
+	if subnet := os.Getenv("MF_AZURE_SUBNET_ID"); subnet != "" {
+		tfvars += fmt.Sprintf("azure_subnet_id = %q\n", subnet)
 	}
 
 	if err := os.WriteFile(filepath.Join(workDir, "terraform.tfvars"), []byte(tfvars), 0644); err != nil {

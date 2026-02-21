@@ -193,6 +193,7 @@ func NewTemplateRenderer() *TemplateRenderer {
 		"settings_smtp.html",
 		"settings_endpoints.html",
 		"settings_platform.html",
+		"settings_csp.html",
 		"login.html",
 		"denied.html",
 		"workspaces.html",

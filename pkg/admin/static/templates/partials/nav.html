@@ -126,6 +126,14 @@
             </svg>
             Endpoints
         </a>
+        <a href="/settings/cloud-providers"
+           data-tooltip="Configure authentication credentials for AWS, GCP, and Azure" data-tooltip-pos="right"
+           class="flex items-center px-3 py-2 rounded-md text-sm font-medium {{if eq .Active "settings-csp"}}bg-gray-800 text-white{{else}}hover:bg-gray-800 hover:text-white{{end}}">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/>
+            </svg>
+            Cloud Providers
+        </a>
         <a href="/monitoring"
            data-tooltip="Application metrics, cluster resources, and alert management" data-tooltip-pos="right"
            class="flex items-center px-3 py-2 rounded-md text-sm font-medium {{if eq .Active "monitoring"}}bg-gray-800 text-white{{else}}hover:bg-gray-800 hover:text-white{{end}}">

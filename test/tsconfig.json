@@ -11,5 +11,5 @@
     "declaration": false,
     "noEmit": true
   },
-  "include": ["e2e/**/*.ts", "fixtures/**/*.ts", "helpers/**/*.ts"]
+  "include": ["*.ts", "e2e/**/*.ts", "fixtures/**/*.ts", "helpers/**/*.ts"]
 }

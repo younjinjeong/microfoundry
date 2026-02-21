@@ -10,7 +10,7 @@
 
 MicroFoundry replaces the heavyweight BOSH/Diego runtime with Kubernetes, managed cloud services, and modern observability. The result: `cf push`-style deployments, service binding, and logging — all backed by Kubernetes, Prometheus, Loki, and Grafana Beyla.
 
-> **Built with AI** — Developed through a structured Human-AI workflow using [Claude Code](https://claude.ai/claude-code) with a 7-agent review process. See [Development Workflow](docs/development-workflow.md) for details. AI agents can read [`ai/AGENTS.md`](ai/AGENTS.md) for fast onboarding.
+> **Built with AI** — Developed through a structured Human-AI workflow using [Claude Code](https://claude.ai/claude-code) with a 7-agent review process. See [Development Workflow](https://github.com/younjinjeong/microfoundry/wiki/Development-Workflow) for details. AI agents can read [`ai/AGENTS.md`](ai/AGENTS.md) for fast onboarding.
 
 ---
 
@@ -154,7 +154,7 @@ The built-in dashboard (`mf admin`) provides application lifecycle, service cata
             └───────────────┘       └───────────────┘      └───────────────┘
 ```
 
-For detailed architecture, multi-cluster runtime, and component design, see [Architecture](docs/architecture.md).
+For detailed architecture, multi-cluster runtime, and component design, see [Architecture](https://github.com/younjinjeong/microfoundry/wiki/Architecture).
 
 ---
 
@@ -175,7 +175,7 @@ mf create-service postgresql small my-db  # Provision
 mf bind-service hello-world my-db         # Bind → VCAP_SERVICES
 ```
 
-Cloud providers support **OIDC federation** via Keycloak — no static credentials needed. See [Admin Guide](docs/admin-guide.md) for setup.
+Cloud providers support **OIDC federation** via Keycloak — no static credentials needed. See [Admin Guide](https://github.com/younjinjeong/microfoundry/wiki/Admin-Guide) for setup.
 
 ---
 
@@ -244,17 +244,17 @@ See [deploy/packages/](deploy/packages/) for detailed setup guides per provider.
 
 ## Documentation
 
-All docs are also available through the **in-app docs viewer** at `/docs` in the admin dashboard.
+All docs are available on the **[GitHub Wiki](https://github.com/younjinjeong/microfoundry/wiki)** and through the in-app docs viewer at `/docs` in the admin dashboard.
 
 | Document | Description |
 |----------|-------------|
-| [User Manual](docs/user-manual.md) | Deploying and managing applications |
-| [Architecture](docs/architecture.md) | Technical design and project structure |
-| [Admin Guide](docs/admin-guide.md) | Dashboard pages and API reference (100+ endpoints) |
-| [Development Workflow](docs/development-workflow.md) | Human-AI collaborative development process |
-| [CF vs MicroFoundry](docs/cloudfoundry-vs-microfoundry.md) | Component-by-component comparison |
-| [CF Architecture](docs/cloudfoundry-architecture.md) | CloudFoundry reference architecture |
-| [Observability & Capacity](docs/observability-capacity.md) | Monitoring and capacity planning |
+| [User Manual](https://github.com/younjinjeong/microfoundry/wiki/User-Manual) | Deploying and managing applications |
+| [Architecture](https://github.com/younjinjeong/microfoundry/wiki/Architecture) | Technical design and project structure |
+| [Admin Guide](https://github.com/younjinjeong/microfoundry/wiki/Admin-Guide) | Dashboard pages and API reference (100+ endpoints) |
+| [Development Workflow](https://github.com/younjinjeong/microfoundry/wiki/Development-Workflow) | Human-AI collaborative development process |
+| [CF vs MicroFoundry](https://github.com/younjinjeong/microfoundry/wiki/CloudFoundry-vs-MicroFoundry) | Component-by-component comparison |
+| [CF Architecture](https://github.com/younjinjeong/microfoundry/wiki/CloudFoundry-Architecture) | CloudFoundry reference architecture |
+| [Observability & Capacity](https://github.com/younjinjeong/microfoundry/wiki/Observability-and-Capacity) | Monitoring and capacity planning |
 | [Changelog](CHANGELOG.md) | Development history and releases |
 
 ---
@@ -266,7 +266,7 @@ All docs are also available through the **in-app docs viewer** at `/docs` in the
 3. Make your changes
 4. Submit a PR targeting `rc`
 
-This project uses a structured AI-assisted workflow. See [CLAUDE.md](CLAUDE.md) for branch strategy and conventions, and [Development Workflow](docs/development-workflow.md) for the full process.
+This project uses a structured AI-assisted workflow. See [CLAUDE.md](CLAUDE.md) for branch strategy and conventions, and [Development Workflow](https://github.com/younjinjeong/microfoundry/wiki/Development-Workflow) for the full process.
 
 ```bash
 make hooks              # Install pre-commit hooks

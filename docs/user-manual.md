@@ -297,7 +297,7 @@ This removes the Deployment, Service, Ingress, and associated /etc/hosts entries
 
 ## Backing Services
 
-MicroFoundry provides a built-in service catalog with 17 service types across 5 categories.
+MicroFoundry provides a built-in service catalog with 56 service types across 4 providers (10 local K8s + 21 AWS + 12 GCP + 13 Azure).
 
 ### Service Catalog
 

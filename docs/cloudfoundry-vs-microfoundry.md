@@ -207,7 +207,7 @@
 
 | | Cloud Foundry | MicroFoundry |
 |---|---|---|
-| **Built-in UI** | Apps Manager (proprietary, Tanzu only) | Built-in admin dashboard (43 HTML templates) |
+| **Built-in UI** | Apps Manager (proprietary, Tanzu only) | Built-in admin dashboard (48 HTML templates) |
 | **Technology** | React SPA (commercial product) | Go templates + HTMX + Tailwind CSS |
 | **Features** | App management, marketplace, org/space management | Dashboard, apps, services, catalog, secrets, clusters, monitoring, IAM, settings, audit logs |
 | **Availability** | Commercial license (Tanzu Application Service) | Open source, included in the binary |
@@ -220,8 +220,8 @@
 |--------|--------------|--------------|
 | **Min. VMs/containers** | 40-80+ VMs | 1 container |
 | **Languages** | Ruby, Go, Java | Go only |
-| **Source files** | ~100+ repos, millions of lines | 96 Go files, 43 HTML templates |
-| **Components** | 12+ distinct systems | 1 binary, 21 Go packages |
+| **Source files** | ~100+ repos, millions of lines | 100+ Go files, 48 HTML templates |
+| **Components** | 12+ distinct systems | 1 binary, 16 Go packages |
 | **Install time** | Hours (BOSH deploy) | Minutes (Helm install) |
 | **Upgrade process** | BOSH rolling update (hours) | K8s rolling deployment (seconds) |
 | **Container overhead per app** | Diego Cell overhead + Garden | Zero (native K8s pods) |

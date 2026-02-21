@@ -133,7 +133,7 @@ pkg/
 ├── secrets/         # Secret management
 │   └── manager.go   # K8s Secret CRUD operations
 ├── service/         # Service broker
-│   ├── catalog.go   # 17 service types (10 local + 7 AWS)
+│   ├── catalog.go   # 56 service types (10 local + 21 AWS + 12 GCP + 13 Azure)
 │   ├── manager.go   # Service lifecycle management
 │   ├── provisioner.go # K8s-native provisioning
 │   ├── binder.go    # VCAP_SERVICES injection
@@ -291,7 +291,7 @@ mf create-service postgresql small my-db
          ▼
 ┌─────────────────────┐
 │  service.Manager    │  Orchestrates create/bind/unbind/delete
-│  ├── catalog.go     │  17 types × 3 plans (10 local + 7 AWS)
+│  ├── catalog.go     │  56 types × 3 plans (10 local + 21 AWS + 12 GCP + 13 Azure)
 │  ├── provisioner.go │  K8s resource creation
 │  ├── binder.go      │  VCAP_SERVICES injection
 │  └── vcap.go        │  CF-compatible JSON format
@@ -674,11 +674,11 @@ This means all documentation is available in the admin dashboard without externa
 
 ```
 microfoundry/
-├── cmd/mf/                    # CLI entry points (25+ commands)
+├── cmd/mf/                    # CLI entry points (20 command modules)
 ├── pkg/                       # Go packages (core logic)
 │   ├── admin/                 # Web dashboard + API handlers
 │   │   └── static/            # Embedded HTML/CSS templates
-│   │       ├── templates/     # Page templates (25+ pages)
+│   │       ├── templates/     # Page templates (48 templates)
 │   │       │   ├── partials/  # Shared partials (nav, header, secret_rows)
 │   │       │   └── tabs/      # HTMX tab partials (13 tabs)
 │   │       └── css/           # Tailwind CSS (CDN)

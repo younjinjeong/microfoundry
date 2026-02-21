@@ -23,7 +23,7 @@ func unbindServiceCmd() *cobra.Command {
 				return err
 			}
 
-			mgr := service.NewManager(k8sClient)
+			mgr := service.NewManager(k8sClient, nil)
 			binder := service.NewBinder(k8sClient, mgr)
 
 			fmt.Printf("Unbinding service '%s' from app '%s'...\n", svcName, appName)

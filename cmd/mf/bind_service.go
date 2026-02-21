@@ -24,7 +24,7 @@ func bindServiceCmd() *cobra.Command {
 				return err
 			}
 
-			mgr := service.NewManager(k8sClient)
+			mgr := service.NewManager(k8sClient, nil)
 			binder := service.NewBinder(k8sClient, mgr)
 
 			// Verify service exists and is available

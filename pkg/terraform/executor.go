@@ -9,11 +9,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/terraform-exec/tfexec"
+	"github.com/younjinjeong/microfoundry/pkg/csp"
 	"github.com/younjinjeong/microfoundry/pkg/k8s"
 	"github.com/younjinjeong/microfoundry/pkg/models"
+	"github.com/younjinjeong/microfoundry/pkg/settings"
 )
 
 // Executor runs terraform init/plan/apply/destroy for service topologies.
@@ -22,11 +25,13 @@ type Executor struct {
 	topologyStore *TopologyStore
 	stateStore    *StateStore
 	k8sClient     *k8s.Client
+	cspManager    *csp.Manager     // nil when OIDC auth disabled
+	settingsStore *settings.Store  // nil when no K8s client
 	mu            sync.Mutex
 }
 
 // NewExecutor creates a new Terraform executor. Returns an error if terraform is not on PATH.
-func NewExecutor(client *k8s.Client) (*Executor, error) {
+func NewExecutor(client *k8s.Client, cspMgr *csp.Manager) (*Executor, error) {
 	execPath, err := exec.LookPath("terraform")
 	if err != nil {
 		return nil, fmt.Errorf("terraform binary not found: %w", err)
@@ -36,6 +41,8 @@ func NewExecutor(client *k8s.Client) (*Executor, error) {
 		topologyStore: NewTopologyStore(client),
 		stateStore:    NewStateStore(client),
 		k8sClient:     client,
+		cspManager:    cspMgr,
+		settingsStore: settings.NewStore(client),
 	}, nil
 }
 
@@ -148,6 +155,13 @@ plan_storage_gb = %d
 	tf, err := tfexec.NewTerraform(workDir, e.execPath)
 	if err != nil {
 		return nil, fmt.Errorf("initializing terraform: %w", err)
+	}
+
+	// Inject CSP credentials from settings store (OIDC or static)
+	if e.cspManager != nil && e.settingsStore != nil {
+		if err := e.injectCSPEnv(ctx, tf); err != nil {
+			log.Printf("warning: CSP credential injection: %v", err)
+		}
 	}
 
 	var stderr bytes.Buffer
@@ -366,4 +380,50 @@ func (e *Executor) saveStateFromDir(ctx context.Context, workDir, instanceName, 
 		return fmt.Errorf("reading state file: %w", err)
 	}
 	return e.stateStore.SaveWithTopologyKey(ctx, instanceName, string(stateBytes), serviceType, planID)
+}
+
+// injectCSPEnv loads CSP credentials from the settings store (OIDC or static)
+// and sets them as environment variables on the Terraform instance.
+func (e *Executor) injectCSPEnv(ctx context.Context, tf *tfexec.Terraform) error {
+	ps, err := e.settingsStore.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("loading platform settings: %w", err)
+	}
+
+	// Start with current process environment
+	envVars := make(map[string]string)
+	for _, env := range os.Environ() {
+		if k, v, ok := strings.Cut(env, "="); ok {
+			envVars[k] = v
+		}
+	}
+
+	// Merge AWS credentials
+	if awsEnv, err := e.cspManager.GetAWSEnv(ctx, ps.CloudProviders.AWS, e.settingsStore); err == nil {
+		for k, v := range awsEnv {
+			envVars[k] = v
+		}
+	} else {
+		log.Printf("CSP: AWS credential injection skipped: %v", err)
+	}
+
+	// Merge GCP credentials
+	if gcpEnv, err := e.cspManager.GetGCPEnv(ctx, ps.CloudProviders.GCP, e.settingsStore); err == nil {
+		for k, v := range gcpEnv {
+			envVars[k] = v
+		}
+	} else {
+		log.Printf("CSP: GCP credential injection skipped: %v", err)
+	}
+
+	// Merge Azure credentials
+	if azureEnv, err := e.cspManager.GetAzureEnv(ctx, ps.CloudProviders.Azure, e.settingsStore); err == nil {
+		for k, v := range azureEnv {
+			envVars[k] = v
+		}
+	} else {
+		log.Printf("CSP: Azure credential injection skipped: %v", err)
+	}
+
+	return tf.SetEnv(envVars)
 }

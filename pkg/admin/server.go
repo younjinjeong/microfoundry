@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/younjinjeong/microfoundry/pkg/auth"
 	"github.com/younjinjeong/microfoundry/pkg/config"
+	"github.com/younjinjeong/microfoundry/pkg/csp"
 	"github.com/younjinjeong/microfoundry/pkg/k8s"
 	"github.com/younjinjeong/microfoundry/pkg/models"
 	"github.com/younjinjeong/microfoundry/pkg/monitoring"
@@ -42,6 +43,8 @@ type Server struct {
 	// Admin domain (e.g., "admin.cf-local.dev")
 	adminDomain string
 	tlsEnabled  bool
+	// CSP OIDC credential manager (nil when auth disabled)
+	cspManager *csp.Manager
 	// Endpoint URL hot-swap
 	endpointMu sync.RWMutex
 }
@@ -98,6 +101,13 @@ func WithTLS(certFile, keyFile string) ServerOption {
 	return func(s *Server) {
 		s.tlsCertFile = certFile
 		s.tlsKeyFile = keyFile
+	}
+}
+
+// WithCSPManager sets the CSP OIDC credential manager.
+func WithCSPManager(mgr *csp.Manager) ServerOption {
+	return func(s *Server) {
+		s.cspManager = mgr
 	}
 }
 

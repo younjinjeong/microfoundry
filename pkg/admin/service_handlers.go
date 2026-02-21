@@ -37,7 +37,7 @@ func (s *Server) ServicesListHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mgr := service.NewManager(client)
+	mgr := service.NewManager(client, s.cspManager)
 	items, err := mgr.List(ctx)
 	if err != nil {
 		log.Printf("error listing services: %v", err)
@@ -71,7 +71,7 @@ func (s *Server) ServiceDetailHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mgr := service.NewManager(client)
+	mgr := service.NewManager(client, s.cspManager)
 	inst, err := mgr.Get(ctx, name)
 	if err != nil {
 		http.Error(w, "Service not found: "+err.Error(), http.StatusNotFound)
@@ -184,7 +184,7 @@ func (s *Server) CreateServiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mgr := service.NewManager(client)
+	mgr := service.NewManager(client, s.cspManager)
 
 	// Check if already exists
 	if existing, _ := mgr.Get(ctx, name); existing != nil {
@@ -228,7 +228,7 @@ func (s *Server) BindServiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mgr := service.NewManager(client)
+	mgr := service.NewManager(client, s.cspManager)
 	binder := service.NewBinder(client, mgr)
 
 	inst, err := mgr.Get(ctx, name)
@@ -275,7 +275,7 @@ func (s *Server) UnbindServiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mgr := service.NewManager(client)
+	mgr := service.NewManager(client, s.cspManager)
 	binder := service.NewBinder(client, mgr)
 
 	if err := binder.Unbind(ctx, appName, name); err != nil {
@@ -305,7 +305,7 @@ func (s *Server) DeleteServiceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mgr := service.NewManager(client)
+	mgr := service.NewManager(client, s.cspManager)
 
 	inst, err := mgr.Get(ctx, name)
 	if err != nil {
@@ -338,7 +338,7 @@ func (s *Server) APIServicesListHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	mgr := service.NewManager(client)
+	mgr := service.NewManager(client, s.cspManager)
 	items, err := mgr.List(ctx)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -359,7 +359,7 @@ func (s *Server) APIServiceDetailHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	mgr := service.NewManager(client)
+	mgr := service.NewManager(client, s.cspManager)
 	inst, err := mgr.Get(ctx, name)
 	if err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})

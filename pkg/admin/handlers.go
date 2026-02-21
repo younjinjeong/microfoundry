@@ -60,7 +60,7 @@ func (s *Server) DashboardHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Always fetched: apps and services (2 K8s calls)
 	apps, _ := client.ListAppItems(ctx)
-	svcMgr := service.NewManager(client)
+	svcMgr := service.NewManager(client, s.cspManager)
 	services, _ := svcMgr.List(ctx)
 
 	// Compute app state breakdown
@@ -266,7 +266,7 @@ func (s *Server) AppDetailHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if tab == "services" {
-		mgr := service.NewManager(client)
+		mgr := service.NewManager(client, s.cspManager)
 		allServices, _ := mgr.List(ctx)
 		boundNames := make(map[string]bool)
 		for _, svc := range detail.Services {
@@ -352,7 +352,7 @@ func (s *Server) AppTabHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Services tab needs available service instances for bind UI
 	if tab == "services" {
-		mgr := service.NewManager(client)
+		mgr := service.NewManager(client, s.cspManager)
 		allServices, _ := mgr.List(ctx)
 
 		// Filter to only available (not already bound to this app)

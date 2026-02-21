@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/younjinjeong/microfoundry/pkg/csp"
 	"github.com/younjinjeong/microfoundry/pkg/k8s"
 	"github.com/younjinjeong/microfoundry/pkg/models"
 	"github.com/younjinjeong/microfoundry/pkg/secrets"
@@ -36,14 +37,14 @@ type Manager struct {
 	tfExecutor  *terraform.Executor // nil when terraform not installed
 }
 
-// NewManager creates a new service manager.
-func NewManager(client *k8s.Client) *Manager {
+// NewManager creates a new service manager. cspMgr may be nil when OIDC auth is disabled.
+func NewManager(client *k8s.Client, cspMgr *csp.Manager) *Manager {
 	m := &Manager{
 		k8sClient:   client,
 		secrets:     secrets.NewManager(client),
 		provisioner: NewProvisioner(client),
 	}
-	if tfExec, err := terraform.NewExecutor(client); err == nil {
+	if tfExec, err := terraform.NewExecutor(client, cspMgr); err == nil {
 		m.tfExecutor = tfExec
 		log.Printf("Terraform executor available")
 	} else {

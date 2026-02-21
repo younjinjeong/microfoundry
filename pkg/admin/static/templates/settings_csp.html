@@ -54,6 +54,27 @@
                     </label>
                 </div>
 
+                <!-- Auth Mode Toggle -->
+                <div class="flex items-center space-x-6">
+                    <span class="text-sm font-medium text-gray-700">Authentication Mode:</span>
+                    <label class="flex items-center">
+                        <input type="radio" name="aws_auth_mode" value="static" {{if ne (index $c "AWS").AuthMode "oidc"}}checked{{end}}
+                               onchange="toggleAuthMode('aws', 'static')"
+                               class="text-blue-600 focus:ring-blue-500">
+                        <span class="ml-1.5 text-sm text-gray-600">Static Credentials</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="aws_auth_mode" value="oidc" {{if eq (index $c "AWS").AuthMode "oidc"}}checked{{end}}
+                               onchange="toggleAuthMode('aws', 'oidc')"
+                               {{if not (index $c "AuthEnabled")}}disabled{{end}}
+                               class="text-blue-600 focus:ring-blue-500 disabled:opacity-50">
+                        <span class="ml-1.5 text-sm text-gray-600 {{if not (index $c "AuthEnabled")}}opacity-50{{end}}">OIDC Federation (Keycloak)</span>
+                    </label>
+                    {{if not (index $c "AuthEnabled")}}
+                    <span class="text-xs text-gray-400 italic">Requires Keycloak auth</span>
+                    {{end}}
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="aws-region" class="block text-sm font-medium text-gray-700 mb-1">Region</label>
@@ -62,34 +83,76 @@
                                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <p class="mt-1 text-xs text-gray-500">Default AWS region for resource provisioning.</p>
                     </div>
-                    <div>
-                        <label for="aws-access-key-id" class="block text-sm font-medium text-gray-700 mb-1">Access Key ID</label>
-                        <input type="text" id="aws-access-key-id" name="aws_access_key_id" value="{{(index $c "AWS").AccessKeyID}}"
-                               placeholder="AKIAIOSFODNN7EXAMPLE"
+                </div>
+
+                <!-- Static Credential Fields -->
+                <div id="aws-static-fields" {{if eq (index $c "AWS").AuthMode "oidc"}}class="hidden"{{end}}>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="aws-access-key-id" class="block text-sm font-medium text-gray-700 mb-1">Access Key ID</label>
+                            <input type="text" id="aws-access-key-id" name="aws_access_key_id" value="{{(index $c "AWS").AccessKeyID}}"
+                                   placeholder="AKIAIOSFODNN7EXAMPLE"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <p class="mt-1 text-xs text-gray-500">IAM user or service account access key.</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="aws-secret-access-key" class="block text-sm font-medium text-gray-700 mb-1">Secret Access Key</label>
+                        <input type="password" id="aws-secret-access-key" name="aws_secret_access_key"
+                               placeholder="{{if index $c "AWSHasSecret"}}(leave blank to keep existing){{else}}Enter secret access key{{end}}"
                                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        <p class="mt-1 text-xs text-gray-500">IAM user or service account access key.</p>
+                        {{if index $c "AWSHasSecret"}}
+                        <p class="mt-1 text-xs text-gray-500">A secret access key is currently set. Leave blank to keep it unchanged.</p>
+                        {{end}}
+                    </div>
+
+                    <div>
+                        <label for="aws-assume-role-arn" class="block text-sm font-medium text-gray-700 mb-1">
+                            Assume Role ARN
+                            <span class="text-gray-400 font-normal">(optional)</span>
+                        </label>
+                        <input type="text" id="aws-assume-role-arn" name="aws_assume_role_arn" value="{{(index $c "AWS").AssumeRoleARN}}"
+                               placeholder="arn:aws:iam::123456789012:role/MicroFoundryRole"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">If set, MicroFoundry will assume this IAM role for all AWS operations.</p>
                     </div>
                 </div>
 
-                <div>
-                    <label for="aws-secret-access-key" class="block text-sm font-medium text-gray-700 mb-1">Secret Access Key</label>
-                    <input type="password" id="aws-secret-access-key" name="aws_secret_access_key"
-                           placeholder="{{if index $c "AWSHasSecret"}}(leave blank to keep existing){{else}}Enter secret access key{{end}}"
-                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    {{if index $c "AWSHasSecret"}}
-                    <p class="mt-1 text-xs text-gray-500">A secret access key is currently set. Leave blank to keep it unchanged.</p>
-                    {{end}}
-                </div>
+                <!-- OIDC Federation Fields -->
+                <div id="aws-oidc-fields" {{if ne (index $c "AWS").AuthMode "oidc"}}class="hidden"{{end}}>
+                    <div class="mb-4">
+                        <label for="aws-oidc-role-arn" class="block text-sm font-medium text-gray-700 mb-1">IAM Role ARN (for OIDC)</label>
+                        <input type="text" id="aws-oidc-role-arn" name="aws_oidc_role_arn" value="{{(index $c "AWS").OIDCRoleARN}}"
+                               placeholder="arn:aws:iam::123456789012:role/MicroFoundryKeycloakRole"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">IAM Role with a trust policy allowing AssumeRoleWithWebIdentity from your Keycloak OIDC provider.</p>
+                    </div>
 
-                <div>
-                    <label for="aws-assume-role-arn" class="block text-sm font-medium text-gray-700 mb-1">
-                        Assume Role ARN
-                        <span class="text-gray-400 font-normal">(optional)</span>
-                    </label>
-                    <input type="text" id="aws-assume-role-arn" name="aws_assume_role_arn" value="{{(index $c "AWS").AssumeRoleARN}}"
-                           placeholder="arn:aws:iam::123456789012:role/MicroFoundryRole"
-                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <p class="mt-1 text-xs text-gray-500">If set, MicroFoundry will assume this IAM role for all AWS operations.</p>
+                    <details class="rounded-md border border-gray-200 bg-gray-50 p-4">
+                        <summary class="text-sm font-medium text-gray-700 cursor-pointer">AWS OIDC Setup Guide</summary>
+                        <div class="mt-3 text-xs text-gray-600 space-y-2">
+                            <p><strong>1.</strong> In the AWS IAM console, go to <em>Identity providers</em> and add an OpenID Connect provider.</p>
+                            <p class="ml-4">Provider URL: <code class="bg-gray-100 px-1 rounded">{{if index $c "KeycloakIssuer"}}{{index $c "KeycloakIssuer"}}{{else}}https://keycloak.example.com/realms/microfoundry{{end}}</code></p>
+                            <p class="ml-4">Audience: <code class="bg-gray-100 px-1 rounded">sts.amazonaws.com</code></p>
+                            <p><strong>2.</strong> Create an IAM Role with the trust policy:</p>
+                            <pre class="ml-4 bg-gray-100 rounded p-2 text-xs overflow-x-auto">{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {"Federated": "arn:aws:iam::ACCOUNT:oidc-provider/YOUR_KEYCLOAK"},
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "YOUR_KEYCLOAK:aud": "sts.amazonaws.com"
+      }
+    }
+  }]
+}</pre>
+                            <p><strong>3.</strong> Attach the required permissions policies to the role (e.g., AmazonRDSFullAccess, AmazonElastiCacheFullAccess).</p>
+                            <p><strong>4.</strong> Enter the Role ARN above and click <em>Test Connection</em> to verify the token exchange.</p>
+                        </div>
+                    </details>
                 </div>
 
                 <!-- AWS Test Connection -->
@@ -122,6 +185,27 @@
                     </label>
                 </div>
 
+                <!-- Auth Mode Toggle -->
+                <div class="flex items-center space-x-6">
+                    <span class="text-sm font-medium text-gray-700">Authentication Mode:</span>
+                    <label class="flex items-center">
+                        <input type="radio" name="gcp_auth_mode" value="static" {{if ne (index $c "GCP").AuthMode "oidc"}}checked{{end}}
+                               onchange="toggleAuthMode('gcp', 'static')"
+                               class="text-blue-600 focus:ring-blue-500">
+                        <span class="ml-1.5 text-sm text-gray-600">Static Credentials</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="gcp_auth_mode" value="oidc" {{if eq (index $c "GCP").AuthMode "oidc"}}checked{{end}}
+                               onchange="toggleAuthMode('gcp', 'oidc')"
+                               {{if not (index $c "AuthEnabled")}}disabled{{end}}
+                               class="text-blue-600 focus:ring-blue-500 disabled:opacity-50">
+                        <span class="ml-1.5 text-sm text-gray-600 {{if not (index $c "AuthEnabled")}}opacity-50{{end}}">OIDC Federation (Keycloak)</span>
+                    </label>
+                    {{if not (index $c "AuthEnabled")}}
+                    <span class="text-xs text-gray-400 italic">Requires Keycloak auth</span>
+                    {{end}}
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="gcp-project-id" class="block text-sm font-medium text-gray-700 mb-1">Project ID</label>
@@ -139,12 +223,58 @@
                     </div>
                 </div>
 
-                <div>
-                    <label for="gcp-service-account-json" class="block text-sm font-medium text-gray-700 mb-1">Service Account JSON</label>
-                    <textarea id="gcp-service-account-json" name="gcp_service_account_json" rows="6"
-                              placeholder='{"type": "service_account", "project_id": "...", ...}'
-                              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{(index $c "GCP").ServiceAccountJSON}}</textarea>
-                    <p class="mt-1 text-xs text-gray-500">Paste the full JSON key file contents for a GCP service account.</p>
+                <!-- Static Credential Fields -->
+                <div id="gcp-static-fields" {{if eq (index $c "GCP").AuthMode "oidc"}}class="hidden"{{end}}>
+                    <div>
+                        <label for="gcp-service-account-json" class="block text-sm font-medium text-gray-700 mb-1">Service Account JSON</label>
+                        <textarea id="gcp-service-account-json" name="gcp_service_account_json" rows="6"
+                                  placeholder='{"type": "service_account", "project_id": "...", ...}'
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{(index $c "GCP").ServiceAccountJSON}}</textarea>
+                        <p class="mt-1 text-xs text-gray-500">Paste the full JSON key file contents for a GCP service account.</p>
+                    </div>
+                </div>
+
+                <!-- OIDC Federation Fields -->
+                <div id="gcp-oidc-fields" {{if ne (index $c "GCP").AuthMode "oidc"}}class="hidden"{{end}}>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="gcp-wif-provider" class="block text-sm font-medium text-gray-700 mb-1">Workload Identity Provider</label>
+                            <input type="text" id="gcp-wif-provider" name="gcp_wif_provider" value="{{(index $c "GCP").WorkloadIdentityProvider}}"
+                                   placeholder="projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <p class="mt-1 text-xs text-gray-500">Full resource name of the Workload Identity Federation provider.</p>
+                        </div>
+
+                        <div>
+                            <label for="gcp-sa-email" class="block text-sm font-medium text-gray-700 mb-1">Service Account Email</label>
+                            <input type="text" id="gcp-sa-email" name="gcp_service_account_email" value="{{(index $c "GCP").ServiceAccountEmail}}"
+                                   placeholder="microfoundry@my-project.iam.gserviceaccount.com"
+                                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <p class="mt-1 text-xs text-gray-500">GCP service account to impersonate via Workload Identity Federation.</p>
+                        </div>
+                    </div>
+
+                    <details class="mt-4 rounded-md border border-gray-200 bg-gray-50 p-4">
+                        <summary class="text-sm font-medium text-gray-700 cursor-pointer">GCP OIDC Setup Guide</summary>
+                        <div class="mt-3 text-xs text-gray-600 space-y-2">
+                            <p><strong>1.</strong> Create a Workload Identity Pool in your GCP project:</p>
+                            <pre class="ml-4 bg-gray-100 rounded p-2 text-xs overflow-x-auto">gcloud iam workload-identity-pools create microfoundry-pool \
+  --location="global" \
+  --display-name="MicroFoundry Pool"</pre>
+                            <p><strong>2.</strong> Add an OIDC provider to the pool:</p>
+                            <pre class="ml-4 bg-gray-100 rounded p-2 text-xs overflow-x-auto">gcloud iam workload-identity-pools providers create-oidc keycloak \
+  --location="global" \
+  --workload-identity-pool="microfoundry-pool" \
+  --issuer-uri="{{if index $c "KeycloakIssuer"}}{{index $c "KeycloakIssuer"}}{{else}}https://keycloak.example.com/realms/microfoundry{{end}}" \
+  --allowed-audiences="//iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/microfoundry-pool/providers/keycloak" \
+  --attribute-mapping="google.subject=assertion.sub"</pre>
+                            <p><strong>3.</strong> Grant the service account token creator role:</p>
+                            <pre class="ml-4 bg-gray-100 rounded p-2 text-xs overflow-x-auto">gcloud iam service-accounts add-iam-policy-binding SA_EMAIL \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/microfoundry-pool/*"</pre>
+                            <p><strong>4.</strong> Enter the provider resource name and SA email above, then click <em>Test Connection</em>.</p>
+                        </div>
+                    </details>
                 </div>
 
                 <!-- GCP Test Connection -->
@@ -177,6 +307,27 @@
                     </label>
                 </div>
 
+                <!-- Auth Mode Toggle -->
+                <div class="flex items-center space-x-6">
+                    <span class="text-sm font-medium text-gray-700">Authentication Mode:</span>
+                    <label class="flex items-center">
+                        <input type="radio" name="azure_auth_mode" value="static" {{if ne (index $c "Azure").AuthMode "oidc"}}checked{{end}}
+                               onchange="toggleAuthMode('azure', 'static')"
+                               class="text-blue-600 focus:ring-blue-500">
+                        <span class="ml-1.5 text-sm text-gray-600">Static Credentials</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="azure_auth_mode" value="oidc" {{if eq (index $c "Azure").AuthMode "oidc"}}checked{{end}}
+                               onchange="toggleAuthMode('azure', 'oidc')"
+                               {{if not (index $c "AuthEnabled")}}disabled{{end}}
+                               class="text-blue-600 focus:ring-blue-500 disabled:opacity-50">
+                        <span class="ml-1.5 text-sm text-gray-600 {{if not (index $c "AuthEnabled")}}opacity-50{{end}}">OIDC Federation (Keycloak)</span>
+                    </label>
+                    {{if not (index $c "AuthEnabled")}}
+                    <span class="text-xs text-gray-400 italic">Requires Keycloak auth</span>
+                    {{end}}
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="azure-tenant-id" class="block text-sm font-medium text-gray-700 mb-1">Tenant ID</label>
@@ -194,14 +345,40 @@
                     </div>
                 </div>
 
-                <div>
-                    <label for="azure-client-secret" class="block text-sm font-medium text-gray-700 mb-1">Client Secret</label>
-                    <input type="password" id="azure-client-secret" name="azure_client_secret"
-                           placeholder="{{if index $c "AzureHasSecret"}}(leave blank to keep existing){{else}}Enter client secret{{end}}"
-                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    {{if index $c "AzureHasSecret"}}
-                    <p class="mt-1 text-xs text-gray-500">A client secret is currently set. Leave blank to keep it unchanged.</p>
-                    {{end}}
+                <!-- Static Credential Fields -->
+                <div id="azure-static-fields" {{if eq (index $c "Azure").AuthMode "oidc"}}class="hidden"{{end}}>
+                    <div>
+                        <label for="azure-client-secret" class="block text-sm font-medium text-gray-700 mb-1">Client Secret</label>
+                        <input type="password" id="azure-client-secret" name="azure_client_secret"
+                               placeholder="{{if index $c "AzureHasSecret"}}(leave blank to keep existing){{else}}Enter client secret{{end}}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        {{if index $c "AzureHasSecret"}}
+                        <p class="mt-1 text-xs text-gray-500">A client secret is currently set. Leave blank to keep it unchanged.</p>
+                        {{end}}
+                    </div>
+                </div>
+
+                <!-- OIDC Federation Fields -->
+                <div id="azure-oidc-fields" {{if ne (index $c "Azure").AuthMode "oidc"}}class="hidden"{{end}}>
+                    <div class="rounded-md bg-blue-50 border border-blue-200 p-3 mb-4">
+                        <p class="text-xs text-blue-700">Azure OIDC uses the Tenant ID and Client ID above. No additional fields are required &mdash; the Keycloak JWT is exchanged via Azure AD Federated Identity Credentials.</p>
+                    </div>
+
+                    <details class="rounded-md border border-gray-200 bg-gray-50 p-4">
+                        <summary class="text-sm font-medium text-gray-700 cursor-pointer">Azure OIDC Setup Guide</summary>
+                        <div class="mt-3 text-xs text-gray-600 space-y-2">
+                            <p><strong>1.</strong> Register an App in Azure AD (or use an existing one). Note the <em>Application (client) ID</em> and <em>Tenant ID</em>.</p>
+                            <p><strong>2.</strong> Under <em>Certificates &amp; secrets &rarr; Federated credentials</em>, add a credential:</p>
+                            <div class="ml-4 space-y-1">
+                                <p>Federated credential scenario: <strong>Other issuer</strong></p>
+                                <p>Issuer: <code class="bg-gray-100 px-1 rounded">{{if index $c "KeycloakIssuer"}}{{index $c "KeycloakIssuer"}}{{else}}https://keycloak.example.com/realms/microfoundry{{end}}</code></p>
+                                <p>Subject identifier: <code class="bg-gray-100 px-1 rounded">service-account-mf-admin</code> (Keycloak service account sub claim)</p>
+                                <p>Audience: The Azure AD Client ID</p>
+                            </div>
+                            <p><strong>3.</strong> Assign the app the <em>Contributor</em> role on the target subscription or resource group.</p>
+                            <p><strong>4.</strong> Enter the Tenant ID and Client ID above, then click <em>Test Connection</em>.</p>
+                        </div>
+                    </details>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -285,6 +462,18 @@ function switchTab(provider) {
     var activeTab = document.getElementById('tab-' + provider);
     activeTab.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
     activeTab.classList.add('border-blue-500', 'text-blue-600');
+}
+
+function toggleAuthMode(provider, mode) {
+    var staticFields = document.getElementById(provider + '-static-fields');
+    var oidcFields = document.getElementById(provider + '-oidc-fields');
+    if (mode === 'oidc') {
+        if (staticFields) staticFields.classList.add('hidden');
+        if (oidcFields) oidcFields.classList.remove('hidden');
+    } else {
+        if (staticFields) staticFields.classList.remove('hidden');
+        if (oidcFields) oidcFields.classList.add('hidden');
+    }
 }
 </script>
 {{end}}

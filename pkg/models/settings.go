@@ -5,6 +5,11 @@ import "strings"
 const (
 	PlatformSettingsConfigMapName = "mf-platform-settings"
 	PlatformCredentialsSecretName = "mf-platform-credentials"
+
+	// AuthModeStatic uses long-lived static credentials (access keys, service account JSON).
+	AuthModeStatic = "static"
+	// AuthModeOIDC uses Keycloak OIDC federation for short-lived temporary credentials.
+	AuthModeOIDC = "oidc"
 )
 
 // RegistryConfig holds Docker/OCI container registry settings.
@@ -118,27 +123,44 @@ type CloudProviderConfig struct {
 // AWSConfig holds AWS authentication settings.
 type AWSConfig struct {
 	Enabled     bool   `json:"enabled"`
+	AuthMode    string `json:"auth_mode,omitempty"` // "static" (default) or "oidc"
 	Region      string `json:"region"`
 	AccessKeyID string `json:"access_key_id"`
 	AssumeRole  string `json:"assume_role,omitempty"`
+	// OIDC federation: IAM Role ARN trusted by Keycloak OIDC provider
+	OIDCRoleARN string `json:"oidc_role_arn,omitempty"`
 }
+
+// IsOIDC returns true when OIDC federation mode is selected.
+func (a *AWSConfig) IsOIDC() bool { return a.AuthMode == AuthModeOIDC }
 
 // GCPConfig holds GCP authentication settings.
 type GCPConfig struct {
 	Enabled   bool   `json:"enabled"`
+	AuthMode  string `json:"auth_mode,omitempty"`
 	ProjectID string `json:"project_id"`
 	Region    string `json:"region"`
+	// OIDC federation: Workload Identity Federation
+	WorkloadIdentityProvider string `json:"wif_provider,omitempty"`
+	ServiceAccountEmail      string `json:"service_account_email,omitempty"`
 }
+
+// IsOIDC returns true when OIDC federation mode is selected.
+func (g *GCPConfig) IsOIDC() bool { return g.AuthMode == AuthModeOIDC }
 
 // AzureConfig holds Azure authentication settings.
 type AzureConfig struct {
 	Enabled        bool   `json:"enabled"`
+	AuthMode       string `json:"auth_mode,omitempty"`
 	TenantID       string `json:"tenant_id"`
 	ClientID       string `json:"client_id"`
 	SubscriptionID string `json:"subscription_id"`
 	ResourceGroup  string `json:"resource_group"`
 	Location       string `json:"location"`
 }
+
+// IsOIDC returns true when OIDC federation mode is selected.
+func (z *AzureConfig) IsOIDC() bool { return z.AuthMode == AuthModeOIDC }
 
 // WebhookEventTypes lists all supported event types for webhook subscriptions.
 var WebhookEventTypes = []string{

@@ -12,6 +12,7 @@ import (
 	"github.com/younjinjeong/microfoundry/pkg/admin"
 	"github.com/younjinjeong/microfoundry/pkg/auth"
 	"github.com/younjinjeong/microfoundry/pkg/config"
+	"github.com/younjinjeong/microfoundry/pkg/csp"
 	"github.com/younjinjeong/microfoundry/pkg/k8s"
 	"github.com/younjinjeong/microfoundry/pkg/monitoring"
 )
@@ -94,6 +95,22 @@ func adminCmd() *cobra.Command {
 				// Audit log
 				auditLog := auth.NewAuditLog(1000)
 				opts = append(opts, admin.WithAuditLog(auditLog))
+			}
+
+			// CSP credential manager (OIDC federation via Keycloak)
+			if cfg.Auth.Enabled && cfg.Auth.IssuerURL != "" {
+				tokenURL := cfg.Auth.IssuerURL + "/protocol/openid-connect/token"
+				clientID := cfg.Auth.AdminClientID
+				clientSecret := cfg.Auth.AdminClientSecret
+				if clientID == "" {
+					clientID = cfg.Auth.ClientID
+				}
+				if clientSecret == "" {
+					clientSecret = cfg.Auth.ClientSecret
+				}
+				cspMgr := csp.NewManager(tokenURL, clientID, clientSecret)
+				opts = append(opts, admin.WithCSPManager(cspMgr))
+				fmt.Println("CSP OIDC federation enabled")
 			}
 
 			// Resolve TLS cert/key paths

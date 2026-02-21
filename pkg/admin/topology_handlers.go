@@ -205,7 +205,7 @@ func (s *Server) TopologyPreviewHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	tfExec, err := terraform.NewExecutor(client)
+	tfExec, err := terraform.NewExecutor(client, s.cspManager)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `<span class="text-red-400">Terraform executor error: %s</span>`, err)
@@ -402,4 +402,3 @@ func (s *Server) APISaveTopologyHandler(w http.ResponseWriter, r *http.Request) 
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "saved"})
 }
-

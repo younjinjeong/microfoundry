@@ -877,6 +877,8 @@ func (s *Server) CloudProvidersSettingsHandler(w http.ResponseWriter, r *http.Re
 		"HasGCPSecret":   hasGCPSecret != "",
 		"HasAzureSecret": hasAzureSecret != "",
 		"Saved":          r.URL.Query().Get("saved") == "true",
+		"AuthEnabled":    s.authEnabled(),
+		"KeycloakIssuer": s.config.Auth.IssuerURL,
 	}
 	s.templates.Render(w, "settings_csp.html", data)
 }
@@ -892,17 +894,23 @@ func (s *Server) SaveCloudProvidersHandler(w http.ResponseWriter, r *http.Reques
 	cfg := models.CloudProviderConfig{
 		AWS: models.AWSConfig{
 			Enabled:     r.FormValue("aws_enabled") == "true",
+			AuthMode:    r.FormValue("aws_auth_mode"),
 			Region:      r.FormValue("aws_region"),
 			AccessKeyID: r.FormValue("aws_access_key_id"),
 			AssumeRole:  r.FormValue("aws_assume_role"),
+			OIDCRoleARN: r.FormValue("aws_oidc_role_arn"),
 		},
 		GCP: models.GCPConfig{
-			Enabled:   r.FormValue("gcp_enabled") == "true",
-			ProjectID: r.FormValue("gcp_project_id"),
-			Region:    r.FormValue("gcp_region"),
+			Enabled:                  r.FormValue("gcp_enabled") == "true",
+			AuthMode:                 r.FormValue("gcp_auth_mode"),
+			ProjectID:                r.FormValue("gcp_project_id"),
+			Region:                   r.FormValue("gcp_region"),
+			WorkloadIdentityProvider: r.FormValue("gcp_wif_provider"),
+			ServiceAccountEmail:      r.FormValue("gcp_service_account_email"),
 		},
 		Azure: models.AzureConfig{
 			Enabled:        r.FormValue("azure_enabled") == "true",
+			AuthMode:       r.FormValue("azure_auth_mode"),
 			TenantID:       r.FormValue("azure_tenant_id"),
 			ClientID:       r.FormValue("azure_client_id"),
 			SubscriptionID: r.FormValue("azure_subscription_id"),
@@ -926,46 +934,30 @@ func (s *Server) SaveCloudProvidersHandler(w http.ResponseWriter, r *http.Reques
 }
 
 // TestCloudProviderHandler tests connectivity for a cloud provider.
+// Supports both static credential validation and OIDC token exchange testing.
 func (s *Server) TestCloudProviderHandler(w http.ResponseWriter, r *http.Request) {
 	provider := r.PathValue("provider")
+	authMode := r.FormValue(provider + "_auth_mode")
 	var msg string
 
 	switch provider {
 	case "aws":
-		region := r.FormValue("aws_region")
-		accessKey := r.FormValue("aws_access_key_id")
-		secretKey := r.FormValue("aws_secret_access_key")
-		if region == "" || accessKey == "" {
-			msg = `<span class="text-red-600">AWS Region and Access Key ID are required.</span>`
-		} else if secretKey == "" {
-			store, err := s.settingsStore(r)
-			if err != nil {
-				msg = `<span class="text-red-600">No cluster available.</span>`
-			} else {
-				secretKey, _ = store.GetCredential(r.Context(), "aws-secret-access-key")
-				if secretKey == "" {
-					msg = `<span class="text-red-600">Secret Access Key is required.</span>`
-				} else {
-					msg = fmt.Sprintf(`<span class="text-green-600">AWS credentials configured (region: %s). Full validation requires aws-sdk-go.</span>`, region)
-				}
-			}
+		if authMode == models.AuthModeOIDC {
+			msg = s.testAWSOIDC(r)
 		} else {
-			msg = fmt.Sprintf(`<span class="text-green-600">AWS credentials configured (region: %s). Full validation requires aws-sdk-go.</span>`, region)
+			msg = s.testAWSStatic(r)
 		}
 	case "gcp":
-		projectID := r.FormValue("gcp_project_id")
-		if projectID == "" {
-			msg = `<span class="text-red-600">GCP Project ID is required.</span>`
+		if authMode == models.AuthModeOIDC {
+			msg = s.testGCPOIDC(r)
 		} else {
-			msg = fmt.Sprintf(`<span class="text-green-600">GCP credentials configured (project: %s). Full validation requires google-cloud-go.</span>`, projectID)
+			msg = s.testGCPStatic(r)
 		}
 	case "azure":
-		tenantID := r.FormValue("azure_tenant_id")
-		clientID := r.FormValue("azure_client_id")
-		if tenantID == "" || clientID == "" {
-			msg = `<span class="text-red-600">Azure Tenant ID and Client ID are required.</span>`
+		if authMode == models.AuthModeOIDC {
+			msg = s.testAzureOIDC(r)
 		} else {
-			msg = fmt.Sprintf(`<span class="text-green-600">Azure credentials configured (tenant: %s). Full validation requires azure-sdk-for-go.</span>`, tenantID)
+			msg = s.testAzureStatic(r)
 		}
 	default:
 		msg = `<span class="text-red-600">Unknown provider.</span>`
@@ -973,4 +965,83 @@ func (s *Server) TestCloudProviderHandler(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprint(w, msg)
+}
+
+func (s *Server) testAWSStatic(r *http.Request) string {
+	region := r.FormValue("aws_region")
+	accessKey := r.FormValue("aws_access_key_id")
+	secretKey := r.FormValue("aws_secret_access_key")
+	if region == "" || accessKey == "" {
+		return `<span class="text-red-600">AWS Region and Access Key ID are required.</span>`
+	}
+	if secretKey == "" {
+		store, err := s.settingsStore(r)
+		if err != nil {
+			return `<span class="text-red-600">No cluster available.</span>`
+		}
+		secretKey, _ = store.GetCredential(r.Context(), "aws-secret-access-key")
+		if secretKey == "" {
+			return `<span class="text-red-600">Secret Access Key is required.</span>`
+		}
+	}
+	return fmt.Sprintf(`<span class="text-green-600">AWS credentials configured (region: %s).</span>`, region)
+}
+
+func (s *Server) testAWSOIDC(r *http.Request) string {
+	if s.cspManager == nil {
+		return `<span class="text-red-600">OIDC federation requires Keycloak authentication to be enabled.</span>`
+	}
+	cfg := models.AWSConfig{
+		OIDCRoleARN: r.FormValue("aws_oidc_role_arn"),
+		Region:      r.FormValue("aws_region"),
+	}
+	if err := s.cspManager.TestAWS(r.Context(), cfg); err != nil {
+		return fmt.Sprintf(`<span class="text-red-600">AWS OIDC test failed: %s</span>`, err)
+	}
+	return `<span class="text-green-600">AWS OIDC federation succeeded — temporary credentials obtained via STS.</span>`
+}
+
+func (s *Server) testGCPStatic(r *http.Request) string {
+	projectID := r.FormValue("gcp_project_id")
+	if projectID == "" {
+		return `<span class="text-red-600">GCP Project ID is required.</span>`
+	}
+	return fmt.Sprintf(`<span class="text-green-600">GCP credentials configured (project: %s).</span>`, projectID)
+}
+
+func (s *Server) testGCPOIDC(r *http.Request) string {
+	if s.cspManager == nil {
+		return `<span class="text-red-600">OIDC federation requires Keycloak authentication to be enabled.</span>`
+	}
+	cfg := models.GCPConfig{
+		WorkloadIdentityProvider: r.FormValue("gcp_wif_provider"),
+		ServiceAccountEmail:      r.FormValue("gcp_service_account_email"),
+	}
+	if err := s.cspManager.TestGCP(r.Context(), cfg); err != nil {
+		return fmt.Sprintf(`<span class="text-red-600">GCP OIDC test failed: %s</span>`, err)
+	}
+	return `<span class="text-green-600">GCP OIDC federation succeeded — access token obtained via Workload Identity.</span>`
+}
+
+func (s *Server) testAzureStatic(r *http.Request) string {
+	tenantID := r.FormValue("azure_tenant_id")
+	clientID := r.FormValue("azure_client_id")
+	if tenantID == "" || clientID == "" {
+		return `<span class="text-red-600">Azure Tenant ID and Client ID are required.</span>`
+	}
+	return fmt.Sprintf(`<span class="text-green-600">Azure credentials configured (tenant: %s).</span>`, tenantID)
+}
+
+func (s *Server) testAzureOIDC(r *http.Request) string {
+	if s.cspManager == nil {
+		return `<span class="text-red-600">OIDC federation requires Keycloak authentication to be enabled.</span>`
+	}
+	cfg := models.AzureConfig{
+		TenantID: r.FormValue("azure_tenant_id"),
+		ClientID: r.FormValue("azure_client_id"),
+	}
+	if err := s.cspManager.TestAzure(r.Context(), cfg); err != nil {
+		return fmt.Sprintf(`<span class="text-red-600">Azure OIDC test failed: %s</span>`, err)
+	}
+	return `<span class="text-green-600">Azure OIDC federation succeeded — access token obtained via Federated Credential.</span>`
 }

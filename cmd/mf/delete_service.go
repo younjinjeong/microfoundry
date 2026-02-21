@@ -22,7 +22,7 @@ func deleteServiceCmd() *cobra.Command {
 				return err
 			}
 
-			mgr := service.NewManager(k8sClient)
+			mgr := service.NewManager(k8sClient, nil)
 
 			// Verify exists
 			inst, err := mgr.Get(ctx, name)

@@ -21,7 +21,7 @@ func servicesCmd() *cobra.Command {
 				return err
 			}
 
-			mgr := service.NewManager(k8sClient)
+			mgr := service.NewManager(k8sClient, nil)
 			items, err := mgr.List(ctx)
 			if err != nil {
 				return err
@@ -57,7 +57,7 @@ func serviceCmd() *cobra.Command {
 				return err
 			}
 
-			mgr := service.NewManager(k8sClient)
+			mgr := service.NewManager(k8sClient, nil)
 			inst, err := mgr.Get(ctx, name)
 			if err != nil {
 				return err
